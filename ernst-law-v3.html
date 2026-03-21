@@ -208,11 +208,24 @@ textarea.form-input { resize: vertical; min-height: 70px; }
     <div class="login-logo">⚖️</div>
     <div class="login-title">משרד עו"ד ארנסט</div>
     <div class="login-sub">תכנון העברה בין-דורית</div>
-    <button class="login-btn primary" onclick="loginWithGoogle()">
-      <span>🔐</span> כניסה עם Google
+    
+    <button class="login-btn" onclick="loginDirect('intern')" style="margin-bottom:8px;">
+      <span>📋</span> כניסה כמתמחה
     </button>
+    <button class="login-btn" onclick="loginDirect('secretary')" style="margin-bottom:16px;">
+      <span>📣</span> כניסה כמזכירה
+    </button>
+    
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">כניסת עורך דין</div>
+      <input type="password" id="lawyer-password" class="form-input" placeholder="סיסמה..." style="margin-bottom:8px;text-align:right;" onkeydown="if(event.key==='Enter')loginLawyer()">
+      <button class="login-btn primary" onclick="loginLawyer()">
+        <span>🔐</span> כניסה כעורך דין
+      </button>
+    </div>
+    
     <div id="login-error" style="color:var(--red);font-size:12px;margin-top:8px;"></div>
-    <div class="version-tag">v3.0 | Supabase</div>
+    <div class="version-tag">v3.6 | Supabase</div>
   </div>
 </div>
 
@@ -235,6 +248,7 @@ textarea.form-input { resize: vertical; min-height: 70px; }
       <div class="nav-item" id="nav-tasks" onclick="showSection('tasks')"><span class="nav-icon">✅</span><span>משימות <span id="task-badge" style="background:var(--red-dim);color:var(--red);font-size:10px;padding:1px 6px;border-radius:4px;"></span></span></div>
       <div class="nav-item" id="nav-leads" onclick="showSection('leads')"><span class="nav-icon">📣</span><span>לידים</span></div>
       <div class="nav-item" id="nav-consults" onclick="showSection('consults')"><span class="nav-icon">🎙️</span><span>שיחות ייעוץ</span></div>
+      <div class="nav-item" id="nav-calendar" onclick="showSection('calendar')"><span class="nav-icon">📅</span><span>יומן פגישות</span></div>
       <div class="nav-item" id="nav-billing" onclick="showSection('billing')"><span class="nav-icon">💰</span><span>גביה</span></div>
       <div class="nav-item" id="nav-settings" onclick="showSection('settings')"><span class="nav-icon">⚙️</span><span>הגדרות</span></div>
     </nav>
@@ -381,6 +395,38 @@ textarea.form-input { resize: vertical; min-height: 70px; }
       <div id="consults-list"></div>
     </div>
 
+    <!-- CALENDAR -->
+    <div id="section-calendar" class="section">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📅 יומן פגישות</div>
+          <div class="page-date" id="cal-today"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" onclick="loadCalendarEvents()">🔄 רענן</button>
+          <button class="btn btn-primary" onclick="openModal('new-meeting')">+ פגישה חדשה</button>
+        </div>
+      </div>
+
+      <!-- Summary metrics -->
+      <div class="metrics-grid" id="cal-metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;"></div>
+
+      <!-- Today's meetings -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title" style="margin:0;">📌 פגישות היום</div>
+          <span id="cal-date-label" style="font-size:12px;color:var(--text3);"></span>
+        </div>
+        <div id="cal-today-list"></div>
+      </div>
+
+      <!-- Upcoming meetings -->
+      <div class="card">
+        <div class="card-title">🗓️ פגישות קרובות</div>
+        <div id="cal-upcoming-list"></div>
+      </div>
+    </div>
+
     <!-- BILLING -->
     <div id="section-billing" class="section">
       <div class="page-header">
@@ -393,16 +439,44 @@ textarea.form-input { resize: vertical; min-height: 70px; }
     <!-- SETTINGS -->
     <div id="section-settings" class="section">
       <div class="page-title" style="margin-bottom:20px;">⚙️ הגדרות</div>
-      <div class="card" style="max-width:500px;">
-        <div class="card-title">פרטי משרד</div>
-        <div class="form-group"><label class="form-label">שם המשרד</label><input class="form-input" id="set-office" value="משרד עו&quot;ד ארנסט"></div>
-        <div class="form-group"><label class="form-label">יעד גביה חודשי (₪)</label><input class="form-input" type="number" id="set-target" value="50000"></div>
-        <button class="btn btn-primary" onclick="saveSettings()">שמור</button>
+      <div class="card" style="max-width:560px;" id="password-card">
+        <div class="card-title">🔐 סיסמת עורך דין</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" class="form-input" id="new-password" placeholder="סיסמה חדשה..." style="flex:1;">
+          <input type="password" class="form-input" id="confirm-password" placeholder="אימות סיסמה..." style="flex:1;">
+          <button class="btn btn-primary" onclick="changePassword()">שמור</button>
+        </div>
+        <div id="password-msg" style="font-size:12px;margin-top:6px;"></div>
       </div>
-      <div class="card" style="max-width:500px;margin-top:16px;">
+      <div class="card" style="max-width:560px;margin-top:16px;">
+        <div class="card-title">👥 ניהול תפקידים</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">הגדר איזה מייל מקבל איזה תפקיד. לאחר שמירה — המשתמש יצטרך להתחבר מחדש.</div>
+        <div id="roles-list"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <input class="form-input" id="new-role-email" placeholder="מייל משתמש..." style="flex:1;min-width:200px;">
+          <select class="form-input" id="new-role-type" style="width:130px;">
+            <option value="lawyer">עורך דין</option>
+            <option value="secretary">מזכירה</option>
+            <option value="intern">מתמחה</option>
+          </select>
+          <button class="btn btn-primary" onclick="addRole()">+ הוסף</button>
+        </div>
+      </div>
+      <div class="card" style="max-width:560px;margin-top:16px;">
+        <div class="card-title">👁️ תצוגה מקדימה לפי תפקיד</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">ראה את המערכת כפי שמשתמש אחר רואה אותה (ללא שינוי בנתונים)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" onclick="previewRole('lawyer')">📊 עורך דין</button>
+          <button class="btn" onclick="previewRole('secretary')">📣 מזכירה</button>
+          <button class="btn" onclick="previewRole('intern')">📋 מתמחה</button>
+          <button class="btn btn-primary" onclick="previewRole(null)">↩ חזור לתפקיד שלי</button>
+        </div>
+        <div id="preview-indicator" style="margin-top:8px;font-size:12px;color:var(--amber);display:none;">👁️ מצב תצוגה מקדימה פעיל</div>
+      </div>
+      <div class="card" style="max-width:560px;margin-top:16px;">
         <div class="card-title">מידע מערכת</div>
         <div style="font-size:13px;color:var(--text2);line-height:2;">
-          <div>גרסה: <strong>v3.0 — Supabase</strong></div>
+          <div>גרסה: <strong>v3.1 — Supabase</strong></div>
           <div>מסד נתונים: <strong>West EU (Ireland)</strong></div>
           <div>סנכרון: <strong>בזמן אמת</strong></div>
           <div id="settings-user-info"></div>
@@ -429,7 +503,7 @@ const SUPABASE_KEY = 'sb_publishable_Aho4ltZzwP6-A5RsIxLVIQ_dshU0h81';
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const APP_VERSION = 'v3.1 · 18.03.26';
+const APP_VERSION = 'v3.6 · 21.03.26';
 const STAGES = ['פתיחה','איסוף','אבחון','תכנון','מסמכים','חתימה','רישום'];
 const STAGE_COLORS = {1:'#e85555',2:'#f5a623',3:'#f5a623',4:'#4a7ff5',5:'#4a7ff5',6:'#1a9e6a',7:'#1a9e6a'};
 const ASSIGN_LABELS = { lawyer:'עו"ד', secretary:'מזכירה', intern:'מתמחה', client:'לקוח' };
@@ -442,56 +516,58 @@ let cache = { cases:[], tasks:[], leads:[], consults:[], invoices:[], settings:{
 // ============================================================
 // AUTH
 // ============================================================
-async function loginWithGoogle() {
-  const { error } = await db.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.href }
-  });
-  if (error) {
-    document.getElementById('login-error').textContent = 'שגיאה בכניסה: ' + error.message;
+const LAWYER_PASSWORD = '1234';
+
+function loginDirect(role) {
+  userRole = role;
+  currentUser = { email: role + '@ernst-local', user_metadata: { full_name: role === 'intern' ? 'מתמחה' : 'מזכירה' } };
+  showApp();
+}
+
+async function loginLawyer() {
+  const pwd = document.getElementById('lawyer-password').value;
+  // בדוק סיסמה ב-Supabase (אם קיימת), אחרת השתמש בברירת מחדל
+  const { data: pwdData } = await db.from('settings').select('value').eq('key','lawyer_password').maybeSingle();
+  const correctPwd = pwdData?.value || LAWYER_PASSWORD;
+  if(pwd !== correctPwd) {
+    document.getElementById('login-error').textContent = 'סיסמה שגויה';
+    return;
   }
+  userRole = 'lawyer';
+  currentUser = { email: 'ernstadv@gmail.com', user_metadata: { full_name: 'איתמר ארנסט' } };
+  showApp();
 }
 
 async function logout() {
-  await db.auth.signOut();
-  location.reload();
+  currentUser = null;
+  userRole = null;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('lawyer-password').value = '';
+  document.getElementById('login-error').textContent = '';
 }
 
 async function initAuth() {
   document.getElementById('app-version').textContent = APP_VERSION;
-  const { data: { session } } = await db.auth.getSession();
-  if (session) {
-    await onLogin(session.user);
-  }
-  db.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) await onLogin(session.user);
-    if (event === 'SIGNED_OUT') { document.getElementById('login-screen').style.display='flex'; document.getElementById('app').style.display='none'; }
-  });
+  // אין session — רק כניסה ידנית
 }
 
-async function onLogin(user) {
-  currentUser = user;
-  const email = user.email || '';
-  // קבע תפקיד לפי מייל
-  if (email === 'office@ernstadv.com' || email.includes('ernst')) userRole = 'lawyer';
-  else if (email.includes('secretary') || email.includes('mazkira')) userRole = 'secretary';
-  else userRole = 'intern';
-  
-  document.getElementById('user-name').textContent = user.user_metadata?.full_name || email;
-  document.getElementById('user-role').textContent = userRole === 'lawyer' ? 'עורך דין' : userRole === 'secretary' ? 'מזכירה' : 'מתמחה';
-  document.getElementById('settings-user-info').innerHTML = 'מחובר: <strong>' + email + '</strong>';
+async function showApp() {
+  const roleLabels = { lawyer:'עורך דין', secretary:'מזכירה', intern:'מתמחה' };
+  const names = { lawyer:'איתמר ארנסט', secretary:'מזכירה', intern:'מתמחה' };
+  document.getElementById('user-name').textContent = currentUser?.user_metadata?.full_name || names[userRole];
+  document.getElementById('user-role').textContent = roleLabels[userRole] || '';
+  document.getElementById('settings-user-info').innerHTML = 'תפקיד: <strong>' + (roleLabels[userRole]||userRole) + '</strong>';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('today-date').textContent = new Date().toLocaleDateString('he-IL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  
   applyPermissions();
   await loadAll();
-  setupRealtime();
 }
 
 function applyPermissions() {
   const perms = {
-    lawyer:    ['dashboard','cases','tasks','leads','consults','billing','settings'],
+    lawyer:    ['dashboard','cases','tasks','leads','consults','calendar','billing','settings'],
     secretary: ['leads','tasks'],
     intern:    ['intern-dashboard','cases','tasks'],
   };
@@ -887,7 +963,17 @@ function renderConsults() {
     const days = c.followup_date ? Math.round((new Date(c.followup_date)-new Date())/86400000) : null;
     const fdLabel = days===null?'—':days<0?`🔴 איחור ${Math.abs(days)} י'`:days===0?'🔴 היום!':days<=3?`🟠 ${days} ימים`:`🟢 ${c.followup_date}`;
     const score = calcConsultScore(c);
+    const hasAI = c.ai_summary || c.ai_recommendation;
     return `<div class="card" style="margin-bottom:10px;">
+      ${hasAI ? `<div style="background:var(--blue-dim);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:13px;">
+        <div style="font-weight:600;color:var(--blue);margin-bottom:4px;">🤖 ניתוח AI</div>
+        ${c.ai_summary?`<div style="color:var(--text2);margin-bottom:4px;">${c.ai_summary}</div>`:''}
+        ${c.ai_recommendation?`<div style="color:var(--text2);margin-bottom:4px;">💡 ${c.ai_recommendation}</div>`:''}
+        ${c.ai_email_draft?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+          <button class="btn btn-sm" onclick="showEmailDraft(${c.id})" style="color:var(--blue);border-color:var(--blue)">📧 טיוטת מייל</button>
+          <button class="btn btn-sm" onclick="showCalendarReminder(${c.id})" style="color:var(--green);border-color:var(--green)">📅 תזכורת ביומן</button>
+        </div>`:''}
+      </div>` : ''}
       <div style="display:grid;grid-template-columns:40px 1fr auto auto;gap:12px;align-items:center;">
         <div style="width:40px;height:40px;border-radius:50%;background:${score>=70?'var(--red)':score>=40?'var(--amber)':'var(--blue)'};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">${score}</div>
         <div>
@@ -897,6 +983,7 @@ function renderConsults() {
         </div>
         <div style="font-size:12px;font-weight:600;white-space:nowrap;">${fdLabel}</div>
         <button class="btn btn-sm" onclick="openModal('edit-consult',${c.id})">✏️</button>
+        <button class="btn btn-sm btn-primary" onclick="openCaseFromConsult(${c.id})" title="פתח תיק">📁</button>
       </div>
     </div>`;
   }).join('') : '<div class="empty-state">אין שיחות ייעוץ — לחץ + כדי להוסיף</div>';
@@ -1050,6 +1137,49 @@ function openModal(type, id) {
       <div class="form-group" style="margin-top:8px;"><label class="form-label">הערות שיחה</label><textarea class="form-input" id="m-c-notes" style="min-height:60px;" placeholder="נקודות עיקריות..."></textarea></div>
       <div class="modal-actions">
         <button class="btn btn-primary" onclick="saveConsult()">שמור</button>
+        <button class="btn" style="color:var(--blue);border-color:var(--blue)" onclick="saveConsultAndAnalyze()">🤖 שמור + נתח</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+  else if(type==='new-case-from-consult') {
+    const c = cache.consults.find(x=>x.id===id);
+    const lastName = c ? c.client_name.split(' ').slice(-1)[0] : '';
+    mc.innerHTML = `<div class="modal-title">📁 פתח תיק מהשיחה</div>
+      <div style="background:var(--blue-dim);border-radius:8px;padding:10px;font-size:12px;color:var(--blue);margin-bottom:14px;">
+        פותח תיק עבור: <strong>${c?.client_name||''}</strong> · ${c?.case_type||''} · ₪${(c?.fee_potential||0).toLocaleString()}
+      </div>
+      <div class="form-group"><label class="form-label">שם התיק</label>
+        <input class="form-input" id="m-cfc-name" value="משפחת ${lastName}"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">סוג תיק</label>
+          <input class="form-input" id="m-cfc-type" value="${c?.case_type||'תכנון בין-דורי'}"></div>
+        <div class="form-group"><label class="form-label">שכ"ט ₪</label>
+          <input class="form-input" type="number" id="m-cfc-fee" value="${c?.fee_potential||0}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">הערות פתיחה</label>
+        <textarea class="form-input" id="m-cfc-notes">${c?.ai_recommendation||c?.notes||''}</textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveCaseFromConsult(${id})">פתח תיק</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>\`;
+  }
+  else if(type==='new-meeting') {
+    mc.innerHTML = `<div class="modal-title">פגישה חדשה</div>
+      <div class="form-group"><label class="form-label">שם לקוח / נושא</label><input class="form-input" id="m-meet-title" placeholder="שם לקוח..."></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">תאריך</label><input class="form-input" type="date" id="m-meet-date" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div class="form-group"><label class="form-label">שעה</label><input class="form-input" type="time" id="m-meet-time" value="10:00"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">סוג</label><select class="form-input" id="m-meet-type">
+          <option value="consult">שיחת ייעוץ</option><option value="followup">פולו-אפ</option><option value="other">אחר</option>
+        </select></div>
+        <div class="form-group"><label class="form-label">משך (דקות)</label><input class="form-input" type="number" id="m-meet-duration" value="60"></div>
+      </div>
+      <div class="form-group"><label class="form-label">קישור Google Meet</label><input class="form-input" id="m-meet-link" placeholder="https://meet.google.com/..."></div>
+      <div class="form-group"><label class="form-label">הערות</label><textarea class="form-input" id="m-meet-notes"></textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveMeeting()">שמור</button>
         <button class="btn" onclick="closeModal()">ביטול</button>
       </div>`;
   }
@@ -1177,6 +1307,52 @@ async function saveConsult() {
   closeModal(); showNotif('✅ שיחת ייעוץ נשמרה'); await loadConsults(); await loadLeads();
 }
 
+async function saveCaseFromConsult(consultId) {
+  const name = document.getElementById('m-cfc-name')?.value?.trim();
+  if(!name) { showNotif('יש להזין שם'); return; }
+  const c = cache.consults.find(x=>x.id===consultId);
+  const { data: newCase } = await db.from('cases').insert({
+    name,
+    type: document.getElementById('m-cfc-type')?.value||'תכנון בין-דורי',
+    fee: parseInt(document.getElementById('m-cfc-fee')?.value)||0,
+    notes: document.getElementById('m-cfc-notes')?.value||'',
+    phone: '',
+    complexity: c?.complexity_level||'בינונית',
+    consult_id: consultId,
+    stage: 1, closed: false,
+    created_at: new Date(), updated_at: new Date()
+  }).select().single();
+  
+  // Update consult status
+  await db.from('consults').update({ next_step:'נסגר', updated_at:new Date() }).eq('id', consultId);
+  // Update lead status
+  if(c?.lead_id) await db.from('leads').update({ status:'עסקה נסגרה' }).eq('id', c.lead_id);
+  
+  closeModal();
+  showNotif('✅ תיק נפתח בהצלחה');
+  await loadCases();
+  await loadConsults();
+  if(newCase) openCaseDetail(newCase.id);
+}
+
+async function saveMeeting() {
+  const title = document.getElementById('m-meet-title')?.value?.trim();
+  if(!title) { showNotif('יש להזין שם'); return; }
+  await db.from('meetings').insert({
+    title,
+    client_name: title,
+    date: document.getElementById('m-meet-date')?.value||null,
+    time: document.getElementById('m-meet-time')?.value||null,
+    type: document.getElementById('m-meet-type')?.value||'consult',
+    duration: parseInt(document.getElementById('m-meet-duration')?.value)||60,
+    meet_link: document.getElementById('m-meet-link')?.value||'',
+    notes: document.getElementById('m-meet-notes')?.value||'',
+    needs_followup: false,
+    created_at: new Date(), updated_at: new Date()
+  });
+  closeModal(); showNotif('✅ פגישה נוספה'); loadCalendarEvents();
+}
+
 async function saveInvoice() {
   const caseEl = document.getElementById('m-inv-case');
   const caseId = caseEl?.value ? parseInt(caseEl.value) : null;
@@ -1202,6 +1378,159 @@ async function convertLeadToCase(leadId) {
       if(document.getElementById('m-case-phone')) document.getElementById('m-case-phone').value = l.phone||'';
     }, 100);
   }, 100);
+}
+
+// ============================================================
+// CONSULT AI + CASE OPENING
+// ============================================================
+
+async function openCaseFromConsult(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  // Check if case already exists
+  const existing = cache.cases.find(x=>x.consult_id===consultId);
+  if(existing) {
+    showNotif('תיק כבר קיים — פותח...');
+    openCaseDetail(existing.id);
+    return;
+  }
+  openModal('new-case-from-consult', consultId);
+}
+
+async function saveConsultAndAnalyze() {
+  await saveConsult();
+  // Find last saved consult
+  await loadConsults();
+  const latest = cache.consults[0];
+  if(latest) await analyzeConsult(latest.id);
+}
+
+async function analyzeConsult(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  showNotif('🤖 Claude מנתח את השיחה...');
+  
+  try {
+    const prompt = `אתה יועץ משפטי מנוסה בתכנון העברה בין-דורית.
+נתוני שיחת ייעוץ:
+- לקוח: ${c.client_name}
+- סוג תיק: ${c.case_type||'לא צוין'}
+- פוטנציאל שכ"ט: ₪${c.fee_potential||0}
+- מורכבות: ${c.complexity_level||'בינונית'}
+- שלב הבא: ${c.next_step||'לא צוין'}
+- רצינות לקוח: ${c.seriousness_level||'לא צוין'}/5
+- הערות: ${c.notes||'אין'}
+${c.lead_heat_score ? '- ציון חום ליד: '+c.lead_heat_score : ''}
+
+בהתבסס על הנתונים, ספק:
+1. סיכום קצר (2-3 משפטים)
+2. המלצה אסטרטגית
+3. האם לשלוח מייל פולו-אפ או לתזמן שיחה
+4. טיוטת מייל פולו-אפ קצרה בעברית (אם רלוונטי)
+
+ענה בפורמט JSON בלבד:
+{
+  "summary": "...",
+  "recommendation": "...", 
+  "next_action": "email" או "call" או "wait",
+  "email_draft": "...",
+  "call_reminder": "..."
+}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const result = JSON.parse(clean);
+    
+    await db.from('consults').update({
+      ai_summary: result.summary,
+      ai_recommendation: result.recommendation,
+      ai_next_action: result.next_action,
+      ai_email_draft: result.email_draft,
+      ai_call_reminder: result.call_reminder,
+      updated_at: new Date()
+    }).eq('id', consultId);
+    
+    showNotif('✅ ניתוח AI הושלם');
+    await loadConsults();
+  } catch(e) {
+    showNotif('שגיאה בניתוח — בדוק חיבור');
+    console.error(e);
+  }
+}
+
+function showEmailDraft(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c||!c.ai_email_draft) return;
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📧 טיוטת מייל פולו-אפ</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;margin-bottom:16px;">${c.ai_email_draft}</div>
+    <div style="background:var(--amber-dim);border-radius:8px;padding:12px;font-size:12px;color:var(--amber);margin-bottom:16px;">
+      💡 כדי לשלוח: העתק את הטקסט ← עבור ל-Claude Desktop ← כתוב "שלח את המייל הזה ל-${c.client_name}"
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyEmailDraft(${consultId})">📋 העתק מייל</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyEmailDraft(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c?.ai_email_draft) return;
+  navigator.clipboard.writeText(c.ai_email_draft);
+  showNotif('✅ מייל הועתק — הדבק ב-Claude Desktop');
+  closeModal();
+}
+
+function showCalendarReminder(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const reminder = c.ai_call_reminder || `תזמן שיחת פולו-אפ עם ${c.client_name} בנושא ${c.case_type||'תכנון בין-דורי'}`;
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📅 תזכורת ביומן</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:16px;font-size:13px;margin-bottom:16px;">${reminder}</div>
+    <div style="background:var(--green-dim);border-radius:8px;padding:12px;font-size:12px;color:var(--green);margin-bottom:16px;">
+      💡 כדי לתזמן: עבור ל-Claude Desktop ← כתוב "צור תזכורת ביומן Google לשיחה עם ${c.client_name}"
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyReminderText(${consultId})">📋 העתק הוראה</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyReminderText(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const text = `צור תזכורת ביומן Google לשיחת פולו-אפ עם ${c.client_name} בנושא ${c.case_type||'תכנון בין-דורי'}. תאריך: ${c.followup_date||'בהקדם'}`;
+  navigator.clipboard.writeText(text);
+  showNotif('✅ הועתק — הדבק ב-Claude Desktop');
+  closeModal();
+}
+
+async function changePassword() {
+  const np = document.getElementById('new-password')?.value;
+  const cp = document.getElementById('confirm-password')?.value;
+  const msg = document.getElementById('password-msg');
+  if(!np) { msg.textContent='הזן סיסמה'; msg.style.color='var(--red)'; return; }
+  if(np !== cp) { msg.textContent='הסיסמאות אינן תואמות'; msg.style.color='var(--red)'; return; }
+  await db.from('settings').upsert({ key:'lawyer_password', value:np, updated_at:new Date() }, { onConflict:'key' });
+  msg.textContent='✅ סיסמה עודכנה';
+  msg.style.color='var(--green)';
+  document.getElementById('new-password').value='';
+  document.getElementById('confirm-password').value='';
 }
 
 async function saveSettings() {
@@ -1290,7 +1619,9 @@ function showSection(id) {
   if(id==='leads') renderLeads();
   if(id==='consults') renderConsults();
   if(id==='billing') renderBilling();
+  if(id==='calendar') loadCalendarEvents();
   if(id==='dashboard') renderDashboard();
+  if(id==='settings') { loadRoles(); const pc=document.getElementById('password-card'); if(pc) pc.style.display=userRole==='lawyer'?'':'none'; }
 }
 
 function updateTaskTabCounts() {
@@ -1305,6 +1636,358 @@ function updateTaskTabCounts() {
     const n = counts[keys[i]]||0;
     tab.innerHTML = labels[i]+(n>0?` <span style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${n}</span>`:'');
   });
+}
+
+// ============================================================
+// CALENDAR
+// ============================================================
+let calendarEvents = [];
+
+async function loadCalendarEvents() {
+  const el = document.getElementById('cal-today-list');
+  const uEl = document.getElementById('cal-upcoming-list');
+  if(!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3)">⏳ טוען פגישות...</div>';
+  
+  // Load from Supabase meetings table
+  const today = new Date().toISOString().split('T')[0];
+  const nextWeek = new Date(Date.now() + 7*86400000).toISOString().split('T')[0];
+  
+  const { data } = await db.from('meetings').select('*').gte('date', today).lte('date', nextWeek).order('date').order('time');
+  calendarEvents = data || [];
+  
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const today = new Date().toISOString().split('T')[0];
+  const dateEl = document.getElementById('cal-date-label');
+  if(dateEl) dateEl.textContent = new Date().toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'});
+  
+  const calToday = document.getElementById('cal-today');
+  if(calToday) calToday.textContent = new Date().toLocaleDateString('he-IL', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+
+  const todayMeetings = calendarEvents.filter(e => e.date === today);
+  const upcomingMeetings = calendarEvents.filter(e => e.date > today);
+
+  // Metrics
+  const cm = document.getElementById('cal-metrics');
+  if(cm) cm.innerHTML = [
+    { label:'פגישות היום', value: todayMeetings.length, color:'var(--blue)' },
+    { label:'השבוע הקרוב', value: upcomingMeetings.length, color:'var(--amber)' },
+    { label:'ממתינות לפולו-אפ', value: calendarEvents.filter(e=>e.needs_followup).length, color:'var(--red)' },
+  ].map(m=>`<div class="metric-card"><div class="metric-label">${m.label}</div><div class="metric-value" style="color:${m.color}">${m.value}</div></div>`).join('');
+
+  // Today
+  const tEl = document.getElementById('cal-today-list');
+  if(tEl) tEl.innerHTML = todayMeetings.length ? todayMeetings.map(e => renderMeetingCard(e)).join('') 
+    : '<div class="empty-state">אין פגישות היום</div>';
+
+  // Upcoming
+  const uEl = document.getElementById('cal-upcoming-list');
+  if(uEl) uEl.innerHTML = upcomingMeetings.length ? upcomingMeetings.map(e => renderMeetingCard(e)).join('')
+    : '<div class="empty-state">אין פגישות קרובות</div>';
+}
+
+function renderMeetingCard(e) {
+  const isConsult = e.type === 'consult';
+  const meetLink = e.meet_link || '';
+  const dateStr = new Date(e.date + 'T12:00:00').toLocaleDateString('he-IL', {weekday:'short', day:'numeric', month:'short'});
+  
+  return `<div class="card" style="margin-bottom:10px;padding:14px 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:16px;">${isConsult?'🎙️':'📅'}</span>
+          <div style="font-weight:600;font-size:14px;">${e.title||e.client_name||'פגישה'}</div>
+          <span class="badge ${isConsult?'badge-blue':'badge-gray'}">${e.type==='consult'?'ייעוץ':e.type==='followup'?'פולו-אפ':'אחר'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text3);display:flex;gap:12px;flex-wrap:wrap;">
+          <span>📅 ${dateStr}</span>
+          ${e.time?`<span>🕐 ${e.time}</span>`:''}
+          ${e.client_name?`<span>👤 ${e.client_name}</span>`:''}
+          ${e.duration?`<span>⏱️ ${e.duration} דק'</span>`:''}
+        </div>
+        ${e.notes?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--bg3);padding:5px 10px;border-radius:6px;">${e.notes}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:120px;">
+        ${meetLink?`<a href="${meetLink}" target="_blank" class="btn btn-sm btn-primary" style="text-decoration:none;text-align:center;">📹 פתח Meet</a>`:''}
+        ${isConsult?`<button class="btn btn-sm" onclick="openHappyScribe('${e.id}')">🎙️ HappyScribe</button>`:''}
+        <button class="btn btn-sm" onclick="openMeetingDetail(${e.id})">✏️ עדכן</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openHappyScribe(meetingId) {
+  window.open('https://www.happyscribe.com', '_blank');
+  showNotif('פתח HappyScribe ← הצטרף לפגישה ← לאחר הסיום חזור כאן');
+}
+
+async function openMeetingDetail(id) {
+  const e = calendarEvents.find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📅 ${e.title||e.client_name||'פגישה'}</div>
+    <div class="form-group"><label class="form-label">שם לקוח</label>
+      <input class="form-input" id="me-client" value="${e.client_name||''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">תאריך</label>
+        <input class="form-input" type="date" id="me-date" value="${e.date||''}"></div>
+      <div class="form-group"><label class="form-label">שעה</label>
+        <input class="form-input" type="time" id="me-time" value="${e.time||''}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">קישור Google Meet</label>
+      <input class="form-input" id="me-link" placeholder="https://meet.google.com/..." value="${e.meet_link||''}"></div>
+    <div class="form-group"><label class="form-label">סטטוס פולו-אפ</label>
+      <select class="form-input" id="me-followup">
+        <option value="0" ${!e.needs_followup?'selected':''}>תקין</option>
+        <option value="1" ${e.needs_followup?'selected':''}>ממתין לפולו-אפ</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">הערות</label>
+      <textarea class="form-input" id="me-notes">${e.notes||''}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveMeetingUpdate(${id})">שמור</button>
+      <button class="btn" style="color:var(--red);border-color:var(--red)" onclick="deleteMeeting(${id})">מחק</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function saveMeetingUpdate(id) {
+  await db.from('meetings').update({
+    client_name: document.getElementById('me-client')?.value||'',
+    date: document.getElementById('me-date')?.value||null,
+    time: document.getElementById('me-time')?.value||null,
+    meet_link: document.getElementById('me-link')?.value||'',
+    needs_followup: document.getElementById('me-followup')?.value==='1',
+    notes: document.getElementById('me-notes')?.value||'',
+    updated_at: new Date()
+  }).eq('id', id);
+  closeModal(); showNotif('✅ פגישה עודכנה'); loadCalendarEvents();
+}
+
+async function deleteMeeting(id) {
+  await db.from('meetings').delete().eq('id', id);
+  closeModal(); showNotif('נמחק'); loadCalendarEvents();
+}
+
+let _originalRole = null;
+
+function previewRole(role) {
+  if(!role) {
+    userRole = _originalRole || 'lawyer';
+    _originalRole = null;
+    document.getElementById('preview-indicator').style.display = 'none';
+  } else {
+    if(!_originalRole) _originalRole = userRole;
+    userRole = role;
+    document.getElementById('preview-indicator').style.display = '';
+  }
+  const roleLabels = { lawyer:'עורך דין', secretary:'מזכירה', intern:'מתמחה' };
+  document.getElementById('user-role').textContent = roleLabels[userRole];
+  applyPermissions();
+  showNotif('תצוגה: ' + (roleLabels[role]||'תפקיד מקורי'));
+}
+
+async function loadRoles() {
+  const el = document.getElementById('roles-list');
+  if(!el) return;
+  const { data } = await db.from('settings').select('key,value').like('key','role_%').order('key');
+  const roles = data||[];
+  const roleLabels = { lawyer:'עורך דין', secretary:'מזכירה', intern:'מתמחה' };
+  el.innerHTML = roles.length ? roles.map(r=>{
+    const email = r.key.replace('role_','');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div><span style="font-size:13px;font-weight:500">${email}</span></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="form-input" style="width:120px;padding:4px 8px;font-size:12px;" onchange="updateRole('${email}',this.value)">
+          <option value="lawyer" ${r.value==='lawyer'?'selected':''}>עורך דין</option>
+          <option value="secretary" ${r.value==='secretary'?'selected':''}>מזכירה</option>
+          <option value="intern" ${r.value==='intern'?'selected':''}>מתמחה</option>
+        </select>
+        <button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteRole('${email}')">✕</button>
+      </div>
+    </div>`;
+  }).join('') : '<div style="color:var(--text3);font-size:12px;padding:8px 0;">אין תפקידים מוגדרים — כל מייל שאינו ארנסט יקבל תפקיד מתמחה</div>';
+}
+
+async function addRole() {
+  const email = document.getElementById('new-role-email')?.value?.trim().toLowerCase();
+  const role = document.getElementById('new-role-type')?.value;
+  if(!email) { showNotif('הזן מייל'); return; }
+  await db.from('settings').upsert({ key:'role_'+email, value:role, updated_at:new Date() }, { onConflict:'key' });
+  document.getElementById('new-role-email').value = '';
+  showNotif('✅ תפקיד נשמר');
+  loadRoles();
+}
+
+async function updateRole(email, role) {
+  await db.from('settings').upsert({ key:'role_'+email, value:role, updated_at:new Date() }, { onConflict:'key' });
+  showNotif('✅ תפקיד עודכן');
+}
+
+async function deleteRole(email) {
+  await db.from('settings').delete().eq('key','role_'+email);
+  showNotif('נמחק');
+  loadRoles();
+}
+
+// ============================================================
+// CONSULT AI + CASE OPENING
+// ============================================================
+
+async function openCaseFromConsult(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  // Check if case already exists
+  const existing = cache.cases.find(x=>x.consult_id===consultId);
+  if(existing) {
+    showNotif('תיק כבר קיים — פותח...');
+    openCaseDetail(existing.id);
+    return;
+  }
+  openModal('new-case-from-consult', consultId);
+}
+
+async function saveConsultAndAnalyze() {
+  await saveConsult();
+  // Find last saved consult
+  await loadConsults();
+  const latest = cache.consults[0];
+  if(latest) await analyzeConsult(latest.id);
+}
+
+async function analyzeConsult(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  showNotif('🤖 Claude מנתח את השיחה...');
+  
+  try {
+    const prompt = `אתה יועץ משפטי מנוסה בתכנון העברה בין-דורית.
+נתוני שיחת ייעוץ:
+- לקוח: ${c.client_name}
+- סוג תיק: ${c.case_type||'לא צוין'}
+- פוטנציאל שכ"ט: ₪${c.fee_potential||0}
+- מורכבות: ${c.complexity_level||'בינונית'}
+- שלב הבא: ${c.next_step||'לא צוין'}
+- רצינות לקוח: ${c.seriousness_level||'לא צוין'}/5
+- הערות: ${c.notes||'אין'}
+${c.lead_heat_score ? '- ציון חום ליד: '+c.lead_heat_score : ''}
+
+בהתבסס על הנתונים, ספק:
+1. סיכום קצר (2-3 משפטים)
+2. המלצה אסטרטגית
+3. האם לשלוח מייל פולו-אפ או לתזמן שיחה
+4. טיוטת מייל פולו-אפ קצרה בעברית (אם רלוונטי)
+
+ענה בפורמט JSON בלבד:
+{
+  "summary": "...",
+  "recommendation": "...", 
+  "next_action": "email" או "call" או "wait",
+  "email_draft": "...",
+  "call_reminder": "..."
+}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const result = JSON.parse(clean);
+    
+    await db.from('consults').update({
+      ai_summary: result.summary,
+      ai_recommendation: result.recommendation,
+      ai_next_action: result.next_action,
+      ai_email_draft: result.email_draft,
+      ai_call_reminder: result.call_reminder,
+      updated_at: new Date()
+    }).eq('id', consultId);
+    
+    showNotif('✅ ניתוח AI הושלם');
+    await loadConsults();
+  } catch(e) {
+    showNotif('שגיאה בניתוח — בדוק חיבור');
+    console.error(e);
+  }
+}
+
+function showEmailDraft(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c||!c.ai_email_draft) return;
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📧 טיוטת מייל פולו-אפ</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;margin-bottom:16px;">${c.ai_email_draft}</div>
+    <div style="background:var(--amber-dim);border-radius:8px;padding:12px;font-size:12px;color:var(--amber);margin-bottom:16px;">
+      💡 כדי לשלוח: העתק את הטקסט ← עבור ל-Claude Desktop ← כתוב "שלח את המייל הזה ל-${c.client_name}"
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyEmailDraft(${consultId})">📋 העתק מייל</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyEmailDraft(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c?.ai_email_draft) return;
+  navigator.clipboard.writeText(c.ai_email_draft);
+  showNotif('✅ מייל הועתק — הדבק ב-Claude Desktop');
+  closeModal();
+}
+
+function showCalendarReminder(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const reminder = c.ai_call_reminder || `תזמן שיחת פולו-אפ עם ${c.client_name} בנושא ${c.case_type||'תכנון בין-דורי'}`;
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📅 תזכורת ביומן</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:16px;font-size:13px;margin-bottom:16px;">${reminder}</div>
+    <div style="background:var(--green-dim);border-radius:8px;padding:12px;font-size:12px;color:var(--green);margin-bottom:16px;">
+      💡 כדי לתזמן: עבור ל-Claude Desktop ← כתוב "צור תזכורת ביומן Google לשיחה עם ${c.client_name}"
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyReminderText(${consultId})">📋 העתק הוראה</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyReminderText(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const text = `צור תזכורת ביומן Google לשיחת פולו-אפ עם ${c.client_name} בנושא ${c.case_type||'תכנון בין-דורי'}. תאריך: ${c.followup_date||'בהקדם'}`;
+  navigator.clipboard.writeText(text);
+  showNotif('✅ הועתק — הדבק ב-Claude Desktop');
+  closeModal();
+}
+
+async function changePassword() {
+  const np = document.getElementById('new-password')?.value;
+  const cp = document.getElementById('confirm-password')?.value;
+  const msg = document.getElementById('password-msg');
+  if(!np) { msg.textContent='הזן סיסמה'; msg.style.color='var(--red)'; return; }
+  if(np !== cp) { msg.textContent='הסיסמאות אינן תואמות'; msg.style.color='var(--red)'; return; }
+  await db.from('settings').upsert({ key:'lawyer_password', value:np, updated_at:new Date() }, { onConflict:'key' });
+  msg.textContent='✅ סיסמה עודכנה';
+  msg.style.color='var(--green)';
+  document.getElementById('new-password').value='';
+  document.getElementById('confirm-password').value='';
+}
+
+async function saveSettings() {
+  showNotif('✅ הגדרות נשמרו');
 }
 
 function showNotif(msg) {
