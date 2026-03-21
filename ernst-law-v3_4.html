@@ -1,0 +1,2009 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>משרד עו"ד ארנסט | מערכת ניהול</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #f4f6fb; --bg2: #fff; --bg3: #eef1f8;
+  --text: #1a1f36; --text2: #4a5568; --text3: #8896a5;
+  --blue: #3a6fd8; --blue-dim: #e8f0fd;
+  --green: #1a9e6a; --green-dim: #e6f7f1;
+  --red: #d63b3b; --red-dim: #fdeaea;
+  --amber: #d4860a; --amber-dim: #fef3e2;
+  --purple: #7c5cbf; --purple-dim: #f0ebfa;
+  --border: #e2e8f0; --shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Heebo', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* LOGIN */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #1a1f36 0%, #2d3561 100%);
+}
+.login-box {
+  background: white; border-radius: 20px; padding: 48px 40px;
+  width: 420px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.login-logo { font-size: 48px; margin-bottom: 8px; }
+.login-title { font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.login-sub { font-size: 13px; color: var(--text3); margin-bottom: 32px; }
+.login-btn {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; padding: 14px 24px; border-radius: 12px; border: 2px solid var(--border);
+  background: white; cursor: pointer; font-size: 15px; font-weight: 500;
+  transition: all 0.2s; margin-bottom: 12px; color: var(--text);
+}
+.login-btn:hover { border-color: var(--blue); background: var(--blue-dim); }
+.login-btn.primary { background: var(--blue); color: white; border-color: var(--blue); }
+.login-btn.primary:hover { background: #2d5bbf; }
+.version-tag { font-size: 11px; color: var(--text3); margin-top: 24px; }
+
+/* APP LAYOUT */
+#app { display: none; height: 100vh; flex-direction: row; }
+.sidebar {
+  width: 220px; background: #1a1f36; color: white; display: flex;
+  flex-direction: column; flex-shrink: 0; overflow-y: auto;
+}
+.sidebar-logo { padding: 20px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo-name { font-size: 15px; font-weight: 700; color: white; }
+.sidebar-logo-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.sidebar-version { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 4px; }
+.sidebar-user { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-user-name { font-size: 13px; font-weight: 600; color: white; }
+.sidebar-user-role { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+nav { flex: 1; padding: 8px 0; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+  cursor: pointer; color: rgba(255,255,255,0.7); font-size: 13px;
+  transition: all 0.15s; border-right: 3px solid transparent;
+}
+.nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
+.nav-item.active { background: rgba(58,111,216,0.25); color: white; border-right-color: var(--blue); }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-logout {
+  padding: 14px 16px; color: rgba(255,255,255,0.5); cursor: pointer;
+  font-size: 12px; display: flex; align-items: center; gap: 8px;
+  border-top: 1px solid rgba(255,255,255,0.1); transition: color 0.15s;
+}
+.sidebar-logout:hover { color: var(--red); }
+.sync-status { padding: 8px 16px; font-size: 10px; color: rgba(255,255,255,0.4); }
+
+/* MAIN */
+.main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.section { display: none; padding: 24px; flex: 1; }
+.section.active { display: block; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+.page-date { font-size: 12px; color: var(--text3); margin-top: 3px; }
+
+/* CARDS */
+.card { background: var(--bg2); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 16px; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 14px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.metric-card {
+  background: var(--bg2); border-radius: 12px; padding: 16px;
+  box-shadow: var(--shadow); text-align: center; cursor: pointer; transition: transform 0.15s;
+}
+.metric-card:hover { transform: translateY(-2px); }
+.metric-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+.metric-value { font-size: 26px; font-weight: 800; color: var(--text); }
+
+/* BUTTONS */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg2);
+  cursor: pointer; font-size: 13px; color: var(--text); transition: all 0.15s;
+  font-family: inherit;
+}
+.btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+.btn-primary { background: var(--blue); color: white; border-color: var(--blue); }
+.btn-primary:hover { background: #2d5bbf; border-color: #2d5bbf; color: white; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* FORMS */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--text2); display: block; margin-bottom: 5px; }
+.form-input {
+  width: 100%; padding: 9px 12px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--bg); font-size: 13px; color: var(--text); font-family: inherit;
+  transition: border-color 0.15s;
+}
+.form-input:focus { outline: none; border-color: var(--blue); background: white; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+textarea.form-input { resize: vertical; min-height: 70px; }
+
+/* BADGES */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-red { background: var(--red-dim); color: var(--red); }
+.badge-green { background: var(--green-dim); color: var(--green); }
+.badge-blue { background: var(--blue-dim); color: var(--blue); }
+.badge-amber { background: var(--amber-dim); color: var(--amber); }
+.badge-gray { background: var(--bg3); color: var(--text3); }
+.badge-purple { background: var(--purple-dim); color: var(--purple); }
+
+/* TABLE */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th { font-size: 11px; font-weight: 600; color: var(--text3); padding: 8px 12px; text-align: right; border-bottom: 2px solid var(--border); }
+.data-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.data-table tr { cursor: pointer; transition: background 0.1s; }
+.data-table tr:hover { background: var(--bg3); }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: white; border-radius: 16px; padding: 28px;
+  max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+/* TABS */
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid var(--border); padding-bottom: 0; flex-wrap: wrap; }
+.tab {
+  padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text3);
+  border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s;
+}
+.tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+.tab:hover { color: var(--text); }
+
+/* PROGRESS */
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+/* NOTIF */
+.notif {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: #1a1f36; color: white; padding: 12px 24px; border-radius: 10px;
+  font-size: 13px; opacity: 0; transition: all 0.3s; z-index: 2000; white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.notif.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 14px; }
+
+/* STAGE STEPS */
+.stage-steps { display: flex; gap: 4px; flex-wrap: wrap; }
+.stage-step {
+  padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  background: var(--bg3); color: var(--text3); cursor: pointer; transition: all 0.15s;
+}
+.stage-step.active { background: var(--blue); color: white; }
+.stage-step.done { background: var(--green-dim); color: var(--green); }
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo-name, .sidebar-logo-sub, .sidebar-version,
+  .sidebar-user-name, .sidebar-user-role, .nav-item span:not(.nav-icon),
+  .sidebar-logout span:not(.nav-icon) { display: none; }
+  .nav-item { justify-content: center; padding: 14px 0; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .section { padding: 16px; }
+}
+@media (max-width: 480px) {
+  .metrics-grid { grid-template-columns: 1fr 1fr; }
+  .page-header { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">⚖️</div>
+    <div class="login-title">משרד עו"ד ארנסט</div>
+    <div class="login-sub">תכנון העברה בין-דורית</div>
+    
+    <button class="login-btn" onclick="loginDirect('intern')" style="margin-bottom:8px;">
+      <span>📋</span> כניסה כמתמחה
+    </button>
+    <button class="login-btn" onclick="loginDirect('secretary')" style="margin-bottom:16px;">
+      <span>📣</span> כניסה כמזכירה
+    </button>
+    
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">כניסת עורך דין</div>
+      <input type="password" id="lawyer-password" class="form-input" placeholder="סיסמה..." style="margin-bottom:8px;text-align:right;" onkeydown="if(event.key==='Enter')loginLawyer()">
+      <button class="login-btn primary" onclick="loginLawyer()">
+        <span>🔐</span> כניסה כעורך דין
+      </button>
+    </div>
+    
+    <div id="login-error" style="color:var(--red);font-size:12px;margin-top:8px;"></div>
+    <div class="version-tag">v3.6 | Supabase</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-name">⚖️ משרד ארנסט</div>
+      <div class="sidebar-logo-sub">תכנון בין-דורי</div>
+      <div class="sidebar-version" id="app-version">v3.0</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="sidebar-user-name" id="user-name">—</div>
+      <div class="sidebar-user-role" id="user-role">—</div>
+    </div>
+    <nav id="main-nav">
+            <div class="nav-item" id="nav-intern-dashboard" onclick="showSection('intern-dashboard')" style="display:none"><span class="nav-icon">📋</span><span>דשבורד</span></div>
+      <div class="nav-item active" id="nav-dashboard" onclick="showSection('dashboard')"><span class="nav-icon">📊</span><span>דשבורד</span></div>
+      <div class="nav-item" id="nav-cases" onclick="showSection('cases')"><span class="nav-icon">📁</span><span>תיקים</span></div>
+      <div class="nav-item" id="nav-tasks" onclick="showSection('tasks')"><span class="nav-icon">✅</span><span>משימות <span id="task-badge" style="background:var(--red-dim);color:var(--red);font-size:10px;padding:1px 6px;border-radius:4px;"></span></span></div>
+      <div class="nav-item" id="nav-leads" onclick="showSection('leads')"><span class="nav-icon">📣</span><span>לידים</span></div>
+      <div class="nav-item" id="nav-consults" onclick="showSection('consults')"><span class="nav-icon">🎙️</span><span>שיחות ייעוץ</span></div>
+      <div class="nav-item" id="nav-calendar" onclick="showSection('calendar')"><span class="nav-icon">📅</span><span>יומן פגישות</span></div>
+      <div class="nav-item" id="nav-billing" onclick="showSection('billing')"><span class="nav-icon">💰</span><span>גביה</span></div>
+      <div class="nav-item" id="nav-settings" onclick="showSection('settings')"><span class="nav-icon">⚙️</span><span>הגדרות</span></div>
+    </nav>
+    <div class="sync-status" id="sync-status">☁️ מסונכרן</div>
+    <div class="sidebar-logout" onclick="logout()"><span class="nav-icon">←</span><span>יציאה</span></div>
+  </div>
+
+  <div class="main">
+    <!-- DASHBOARD -->
+    <div id="section-dashboard" class="section active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">דשבורד ניהול</div>
+          <div class="page-date" id="today-date"></div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('new-case')">+ תיק חדש</button>
+      </div>
+      <div class="metrics-grid" id="metrics-grid"></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">תיקים פעילים</div>
+          <div id="dash-cases"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">משימות דחופות</div>
+          <div id="dash-tasks"></div>
+        </div>
+      </div>
+      <div class="card" id="dash-followup-card" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title" style="margin:0">🎙️ פולו-אפ שיחות ייעוץ</div>
+          <button class="btn btn-sm" onclick="showSection('consults')">לכל השיחות ←</button>
+        </div>
+        <div id="dash-consults"></div>
+      </div>
+    </div>
+
+    <!-- INTERN DASHBOARD -->
+    <div id="section-intern-dashboard" class="section">
+      <div class="page-header">
+        <div><div class="page-title">📋 דשבורד מתמחה</div>
+        <div style="font-size:12px;color:var(--text3)" id="intern-today"></div></div>
+      </div>
+      <div class="metrics-grid" id="intern-metrics"></div>
+      <div class="grid-2">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div class="card-title" style="margin:0">🔴 משימות דחופות</div>
+            <button class="btn btn-sm" onclick="showSection('tasks')">לכל המשימות ←</button>
+          </div>
+          <div id="intern-urgent"></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div class="card-title" style="margin:0">📁 תיקים שיש לי משימות</div>
+            <button class="btn btn-sm" onclick="showSection('cases')">לכל התיקים ←</button>
+          </div>
+          <div id="intern-cases-list"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title" style="margin:0">📅 כל המשימות הפתוחות</div>
+          <span id="intern-open-count" style="font-size:12px;color:var(--text3)"></span>
+        </div>
+        <div id="intern-all-tasks"></div>
+      </div>
+    </div>
+
+    <!-- CASES -->
+    <div id="section-cases" class="section">
+      <div class="page-header">
+        <div>
+          <div class="page-title">תיקים</div>
+          <div style="display:flex;gap:16px;margin-top:6px;">
+            <span id="tab-active-cases" onclick="window._showClosed=false;renderCases()" style="font-size:13px;cursor:pointer;color:var(--blue);font-weight:700;border-bottom:2px solid var(--blue);padding-bottom:2px;">פעילים</span>
+            <span id="tab-closed-cases" onclick="window._showClosed=true;renderCases()" style="font-size:13px;cursor:pointer;color:var(--text3);padding-bottom:2px;">סגורים</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('new-case')">+ תיק חדש</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="data-table">
+          <thead><tr><th>לקוח</th><th>סוג</th><th>מורכבות</th><th>שלב</th><th>התקדמות</th><th>משימות</th></tr></thead>
+          <tbody id="cases-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TASKS -->
+    <div id="section-tasks" class="section">
+      <div class="page-header">
+        <div class="page-title">משימות</div>
+        <button class="btn btn-primary" onclick="openModal('new-task')">+ משימה חדשה</button>
+      </div>
+      <div class="tabs" id="tasks-tabs">
+        <div class="tab active" onclick="filterTasks('all',this)">הכל</div>
+        <div class="tab" onclick="filterTasks('lawyer',this)">עו"ד</div>
+        <div class="tab" onclick="filterTasks('secretary',this)">מזכירה</div>
+        <div class="tab" onclick="filterTasks('intern',this)">מתמחה</div>
+        <div class="tab" onclick="filterTasks('done',this)">✅ הושלמו</div>
+      </div>
+      <div id="tasks-list"></div>
+    </div>
+
+    <!-- LEADS -->
+    <div id="section-leads" class="section">
+      <div class="page-header">
+        <div class="page-title">לידים / CRM</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span id="sync-indicator" style="font-size:12px;color:var(--text3);padding:4px 8px;background:var(--bg3);border-radius:8px;align-self:center;">☁️ מסונכרן</span>
+          <button class="btn" onclick="document.getElementById('excel-input').click()">📂 ייבא מ-Excel</button>
+          <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+          <button class="btn btn-primary" onclick="openModal('new-lead')">+ ליד חדש</button>
+        </div>
+      </div>
+      <div class="card" style="padding:12px 16px;margin-bottom:12px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <input class="form-input" id="lead-search" placeholder="🔍 חיפוש..." style="max-width:200px;" oninput="renderLeads()">
+          <select class="form-input" id="lead-status-filter" style="width:160px;" onchange="renderLeads()">
+            <option value="">כל הסטטוסים</option>
+            <option>עדיין לא נוצר קשר</option>
+            <option>אין מענה</option>
+            <option>ענה, ביקש לחזור</option>
+            <option>נקבע שיחת ייעוץ</option>
+            <option>עסקה נסגרה</option>
+            <option>לא רלוונטי</option>
+          </select>
+          <button class="btn btn-sm" onclick="renderLeads()">🔍 הצג</button>
+          <span id="leads-count" style="font-size:12px;color:var(--text3);"></span>
+        </div>
+      </div>
+      <div class="card" style="padding:0;">
+        <div id="leads-list" style="padding:0 16px;"></div>
+      </div>
+    </div>
+
+    <!-- CONSULTS -->
+    <div id="section-consults" class="section">
+      <div class="page-header">
+        <div class="page-title">🎙️ שיחות ייעוץ</div>
+        <button class="btn btn-primary" onclick="openModal('new-consult')">+ שיחת ייעוץ</button>
+      </div>
+      <div id="consults-list"></div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="section-calendar" class="section">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📅 יומן פגישות</div>
+          <div class="page-date" id="cal-today"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" onclick="loadCalendarEvents()">🔄 רענן</button>
+          <button class="btn btn-primary" onclick="openModal('new-meeting')">+ פגישה חדשה</button>
+        </div>
+      </div>
+
+      <!-- Summary metrics -->
+      <div class="metrics-grid" id="cal-metrics" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;"></div>
+
+      <!-- Today's meetings -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title" style="margin:0;">📌 פגישות היום</div>
+          <span id="cal-date-label" style="font-size:12px;color:var(--text3);"></span>
+        </div>
+        <div id="cal-today-list"></div>
+      </div>
+
+      <!-- Upcoming meetings -->
+      <div class="card">
+        <div class="card-title">🗓️ פגישות קרובות</div>
+        <div id="cal-upcoming-list"></div>
+      </div>
+    </div>
+
+    <!-- BILLING -->
+    <div id="section-billing" class="section">
+      <div class="page-header">
+        <div class="page-title">💰 גביה</div>
+        <button class="btn btn-primary" onclick="openModal('new-invoice')">+ חשבונית</button>
+      </div>
+      <div id="billing-content"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="section-settings" class="section">
+      <div class="page-title" style="margin-bottom:20px;">⚙️ הגדרות</div>
+      <div class="card" style="max-width:560px;" id="password-card">
+        <div class="card-title">🔐 סיסמת עורך דין</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="password" class="form-input" id="new-password" placeholder="סיסמה חדשה..." style="flex:1;">
+          <input type="password" class="form-input" id="confirm-password" placeholder="אימות סיסמה..." style="flex:1;">
+          <button class="btn btn-primary" onclick="changePassword()">שמור</button>
+        </div>
+        <div id="password-msg" style="font-size:12px;margin-top:6px;"></div>
+      </div>
+      <div class="card" style="max-width:560px;margin-top:16px;">
+        <div class="card-title">👥 ניהול תפקידים</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">הגדר איזה מייל מקבל איזה תפקיד. לאחר שמירה — המשתמש יצטרך להתחבר מחדש.</div>
+        <div id="roles-list"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <input class="form-input" id="new-role-email" placeholder="מייל משתמש..." style="flex:1;min-width:200px;">
+          <select class="form-input" id="new-role-type" style="width:130px;">
+            <option value="lawyer">עורך דין</option>
+            <option value="secretary">מזכירה</option>
+            <option value="intern">מתמחה</option>
+          </select>
+          <button class="btn btn-primary" onclick="addRole()">+ הוסף</button>
+        </div>
+      </div>
+      <div class="card" style="max-width:560px;margin-top:16px;">
+        <div class="card-title">👁️ תצוגה מקדימה לפי תפקיד</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">ראה את המערכת כפי שמשתמש אחר רואה אותה (ללא שינוי בנתונים)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" onclick="previewRole('lawyer')">📊 עורך דין</button>
+          <button class="btn" onclick="previewRole('secretary')">📣 מזכירה</button>
+          <button class="btn" onclick="previewRole('intern')">📋 מתמחה</button>
+          <button class="btn btn-primary" onclick="previewRole(null)">↩ חזור לתפקיד שלי</button>
+        </div>
+        <div id="preview-indicator" style="margin-top:8px;font-size:12px;color:var(--amber);display:none;">👁️ מצב תצוגה מקדימה פעיל</div>
+      </div>
+      <div class="card" style="max-width:560px;margin-top:16px;">
+        <div class="card-title">מידע מערכת</div>
+        <div style="font-size:13px;color:var(--text2);line-height:2;">
+          <div>גרסה: <strong>v3.1 — Supabase</strong></div>
+          <div>מסד נתונים: <strong>West EU (Ireland)</strong></div>
+          <div>סנכרון: <strong>בזמן אמת</strong></div>
+          <div id="settings-user-info"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal-content" onclick="event.stopPropagation()"></div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+// ============================================================
+// SUPABASE CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://hkjvmtojoupxizxttdfs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Aho4ltZzwP6-A5RsIxLVIQ_dshU0h81';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const APP_VERSION = 'v3.6 · 21.03.26';
+const STAGES = ['פתיחה','איסוף','אבחון','תכנון','מסמכים','חתימה','רישום'];
+const STAGE_COLORS = {1:'#e85555',2:'#f5a623',3:'#f5a623',4:'#4a7ff5',5:'#4a7ff5',6:'#1a9e6a',7:'#1a9e6a'};
+const ASSIGN_LABELS = { lawyer:'עו"ד', secretary:'מזכירה', intern:'מתמחה', client:'לקוח' };
+const PRIORITY_COLORS = { high:'#e85555', med:'#f5a623', low:'#4a7ff5' };
+
+let currentUser = null;
+let userRole = null;
+let cache = { cases:[], tasks:[], leads:[], consults:[], invoices:[], settings:{} };
+
+// ============================================================
+// AUTH
+// ============================================================
+const LAWYER_PASSWORD = '1234';
+
+function loginDirect(role) {
+  userRole = role;
+  currentUser = { email: role + '@ernst-local', user_metadata: { full_name: role === 'intern' ? 'מתמחה' : 'מזכירה' } };
+  showApp();
+}
+
+async function loginLawyer() {
+  const pwd = document.getElementById('lawyer-password').value;
+  // בדוק סיסמה ב-Supabase (אם קיימת), אחרת השתמש בברירת מחדל
+  const { data: pwdData } = await db.from('settings').select('value').eq('key','lawyer_password').maybeSingle();
+  const correctPwd = pwdData?.value || LAWYER_PASSWORD;
+  if(pwd !== correctPwd) {
+    document.getElementById('login-error').textContent = 'סיסמה שגויה';
+    return;
+  }
+  userRole = 'lawyer';
+  currentUser = { email: 'ernstadv@gmail.com', user_metadata: { full_name: 'איתמר ארנסט' } };
+  showApp();
+}
+
+async function logout() {
+  currentUser = null;
+  userRole = null;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('lawyer-password').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+async function initAuth() {
+  document.getElementById('app-version').textContent = APP_VERSION;
+  // אין session — רק כניסה ידנית
+}
+
+async function showApp() {
+  const roleLabels = { lawyer:'עורך דין', secretary:'מזכירה', intern:'מתמחה' };
+  const names = { lawyer:'איתמר ארנסט', secretary:'מזכירה', intern:'מתמחה' };
+  document.getElementById('user-name').textContent = currentUser?.user_metadata?.full_name || names[userRole];
+  document.getElementById('user-role').textContent = roleLabels[userRole] || '';
+  document.getElementById('settings-user-info').innerHTML = 'תפקיד: <strong>' + (roleLabels[userRole]||userRole) + '</strong>';
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('he-IL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  applyPermissions();
+  await loadAll();
+}
+
+function applyPermissions() {
+  const perms = {
+    lawyer:    ['dashboard','cases','tasks','leads','consults','calendar','billing','settings'],
+    secretary: ['leads','tasks'],
+    intern:    ['intern-dashboard','cases','tasks'],
+  };
+  const allowed = perms[userRole] || ['tasks'];
+  document.querySelectorAll('.nav-item').forEach(el => {
+    const id = el.id.replace('nav-','');
+    el.style.display = allowed.includes(id) ? '' : 'none';
+  });
+  showSection(allowed[0]);
+}
+
+// ============================================================
+// REALTIME
+// ============================================================
+function setupRealtime() {
+  db.channel('ernst-law')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => { loadLeads(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cases' }, () => { loadCases(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => { loadTasks(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'consults' }, () => { loadConsults(); })
+    .subscribe((status) => {
+      const el = document.getElementById('sync-status');
+      if (el) el.textContent = status === 'SUBSCRIBED' ? '☁️ מסונכרן' : '⏳ מתחבר...';
+    });
+}
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+async function loadAll() {
+  await Promise.all([loadCases(), loadTasks(), loadLeads(), loadConsults(), loadInvoices()]);
+  if(userRole === 'intern') renderInternDashboard();
+  else renderDashboard();
+}
+
+async function loadCases() {
+  const { data } = await db.from('cases').select('*').order('created_at', { ascending: false });
+  cache.cases = data || [];
+  renderCases();
+  renderDashboard();
+}
+
+async function loadTasks() {
+  const { data } = await db.from('tasks').select('*').order('created_at', { ascending: false });
+  cache.tasks = data || [];
+  renderTasks();
+  renderDashboard();
+}
+
+async function loadLeads() {
+  const { data } = await db.from('leads').select('*').order('created_at', { ascending: false });
+  cache.leads = data || [];
+  renderLeads();
+  renderDashboard();
+}
+
+async function loadConsults() {
+  const { data } = await db.from('consults').select('*').order('created_at', { ascending: false });
+  cache.consults = data || [];
+  renderConsults();
+  renderDashboard();
+}
+
+async function loadInvoices() {
+  const { data } = await db.from('invoices').select('*').order('created_at', { ascending: false });
+  cache.invoices = data || [];
+  renderBilling();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  if (!document.getElementById('metrics-grid')) return;
+  const activeCases = cache.cases.filter(c=>!c.closed).length;
+  const openTasks = cache.tasks.filter(t=>!t.done).length;
+  const hotLeads = cache.leads.filter(l=>['נקבע שיחת ייעוץ'].includes(l.status)).length;
+  const totalBilling = cache.invoices.filter(i=>i.status==='שולם').reduce((s,i)=>s+(i.amount||0),0);
+
+  document.getElementById('metrics-grid').innerHTML = [
+    { label:'תיקים פעילים', value:activeCases, color:'var(--blue)', section:'cases' },
+    { label:'משימות פתוחות', value:openTasks, color:openTasks>5?'var(--red)':'var(--green)', section:'tasks' },
+    { label:'לידים חמים', value:hotLeads, color:'var(--amber)', section:'leads' },
+    { label:'גביה החודש ₪', value:(totalBilling/1000).toFixed(0)+'K', color:'var(--green)', section:'billing' },
+  ].map(m=>`<div class="metric-card" onclick="showSection('${m.section}')">
+    <div class="metric-label">${m.label}</div>
+    <div class="metric-value" style="color:${m.color}">${m.value}</div>
+  </div>`).join('');
+
+  // Cases
+  const topCases = cache.cases.filter(c=>!c.closed).slice(0,5);
+  document.getElementById('dash-cases').innerHTML = topCases.length
+    ? topCases.map(c=>{
+        const pct = Math.round((c.stage||1)/7*100);
+        return `<div style="padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="openCaseDetail(${c.id})">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-weight:600;font-size:13px;">${c.name}</div>
+            <span class="badge badge-blue">${STAGES[(c.stage||1)-1]}</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${STAGE_COLORS[c.stage||1]}"></div></div>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state">אין תיקים פעילים</div>';
+
+  // Tasks
+  const urgentTasks = cache.tasks.filter(t=>!t.done&&t.priority==='high').slice(0,5);
+  document.getElementById('task-badge').textContent = openTasks > 0 ? openTasks : '';
+  document.getElementById('dash-tasks').innerHTML = urgentTasks.length
+    ? urgentTasks.map(t=>`<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;"></div>
+        <div style="flex:1;font-size:13px;">${t.title}</div>
+        <span style="font-size:11px;color:var(--text3);">${t.case_name||'כללי'}</span>
+      </div>`).join('')
+    : '<div style="padding:20px;text-align:center;color:var(--green)">✅ אין משימות דחופות</div>';
+
+  // Consults follow-up
+  const followups = cache.consults.filter(c=>{
+    if (!c.followup_date||['נסגר','לא רלוונטי'].includes(c.next_step)) return false;
+    const d = new Date(c.followup_date); const today = new Date(); today.setHours(0,0,0,0);
+    return Math.round((d-today)/86400000) <= 3;
+  });
+  const fc = document.getElementById('dash-followup-card');
+  if (fc) {
+    fc.style.display = followups.length > 0 ? '' : 'none';
+    document.getElementById('dash-consults').innerHTML = followups.map(c=>{
+      const days = Math.round((new Date(c.followup_date)-new Date())/86400000);
+      const label = days<0?`🔴 איחור ${Math.abs(days)} ימים`:days===0?'🔴 היום!':days<=3?`🟠 ${days} ימים`:`🟢 ${days} ימים`;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="showSection('consults')">
+        <div><div style="font-weight:600;font-size:13px;">${c.client_name}</div><div style="font-size:11px;color:var(--text3);">${c.case_type||''} · ${c.next_step||''}</div></div>
+        <div style="font-size:12px;font-weight:600;">${label}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ============================================================
+// CASES
+// ============================================================
+function renderCases() {
+  const showClosed = window._showClosed;
+  const cases = cache.cases.filter(c=>showClosed?c.closed:!c.closed);
+  
+  const at = document.getElementById('tab-active-cases');
+  const ct = document.getElementById('tab-closed-cases');
+  if(at){at.style.color=showClosed?'var(--text3)':'var(--blue)';at.style.borderBottom=showClosed?'2px solid transparent':'2px solid var(--blue)';at.style.fontWeight=showClosed?'400':'700';}
+  if(ct){ct.style.color=showClosed?'var(--blue)':'var(--text3)';ct.style.borderBottom=showClosed?'2px solid var(--blue)':'2px solid transparent';ct.style.fontWeight=showClosed?'700':'400';}
+
+  const tbody = document.getElementById('cases-table');
+  if(!tbody) return;
+  
+  const compColors = {'גבוהה מאוד':'badge-red','גבוהה':'badge-amber','בינונית':'badge-blue','נמוכה':'badge-green'};
+  tbody.innerHTML = cases.length ? cases.map(c=>{
+    const pct = Math.round((c.stage||1)/7*100);
+    return `<tr onclick="openCaseDetail(${c.id})">
+      <td><div style="font-weight:600">${c.name}</div><div style="font-size:11px;color:var(--text3)">${c.type||''}</div></td>
+      <td>${c.type||'—'}</td>
+      <td><span class="badge ${compColors[c.complexity]||'badge-gray'}">${c.complexity||'—'}</span></td>
+      <td><span class="badge badge-blue">${STAGES[(c.stage||1)-1]}</span></td>
+      <td style="min-width:120px"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${STAGE_COLORS[c.stage||1]}"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">${pct}%</div></td>
+      <td><span class="badge badge-amber">${cache.tasks.filter(t=>t.case_id===c.id&&!t.done).length}</span></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)">${showClosed?'אין תיקים סגורים':'אין תיקים פעילים'}</td></tr>`;
+}
+
+function openCaseDetail(id) {
+  const c = cache.cases.find(x=>x.id===id);
+  if(!c) return;
+  const pct = Math.round((c.stage||1)/7*100);
+  const caseTasks = cache.tasks.filter(t=>t.case_id===id&&!t.done);
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📁 ${c.name}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <span class="badge badge-blue">${c.type||''}</span>
+      <span class="badge ${c.complexity==='גבוהה'||c.complexity==='גבוהה מאוד'?'badge-red':'badge-blue'}">${c.complexity||''}</span>
+      <span class="badge badge-green">${STAGES[(c.stage||1)-1]}</span>
+    </div>
+    <div class="stage-steps" style="margin-bottom:16px;">
+      ${STAGES.map((s,i)=>`<div class="stage-step ${(c.stage||1)>i+1?'done':(c.stage||1)===i+1?'active':''}" onclick="updateCaseStage(${id},${i+1})">${s}</div>`).join('')}
+    </div>
+    <div class="progress-bar" style="margin-bottom:16px;"><div class="progress-fill" style="width:${pct}%;background:${STAGE_COLORS[c.stage||1]}"></div></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">
+      ${c.phone?`📞 ${c.phone} &nbsp;`:''} ${c.email?`✉️ ${c.email}`:''} ${c.fee?`<br>שכ"ט: ₪${c.fee.toLocaleString()}`:''}
+    </div>
+    <div style="margin-bottom:12px;"><div style="font-weight:600;font-size:13px;margin-bottom:8px;">משימות פתוחות (${caseTasks.length})</div>
+      ${caseTasks.map(t=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span>${t.title}</span><button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;" onclick="completeTask(${t.id})">✓</button>
+      </div>`).join('') || '<div style="color:var(--text3);font-size:12px;">אין משימות פתוחות</div>'}
+    </div>
+    ${c.notes?`<div style="background:var(--bg3);border-radius:8px;padding:10px;font-size:12px;color:var(--text2);margin-bottom:14px;">${c.notes}</div>`:''}
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal();openModal('new-task',${id})">+ משימה</button>
+      ${userRole==='lawyer'?`<button class="btn" style="color:var(--red);border-color:var(--red)" onclick="closeCase(${id})">${c.closed?'פתח מחדש':'סגור תיק'}</button>`:''}
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function updateCaseStage(id, stage) {
+  await db.from('cases').update({ stage, updated_at: new Date() }).eq('id', id);
+  showNotif('שלב עודכן');
+  await loadCases();
+}
+
+async function closeCase(id) {
+  const c = cache.cases.find(x=>x.id===id);
+  if(!c) return;
+  await db.from('cases').update({ closed: !c.closed, updated_at: new Date() }).eq('id', id);
+  closeModal();
+  showNotif(c.closed?'תיק נפתח מחדש':'✅ תיק נסגר');
+  await loadCases();
+}
+
+// ============================================================
+// TASKS
+// ============================================================
+function renderTasks() {
+  renderTasksList(window.taskFilter||'all');
+}
+
+function filterTasks(filter, el) {
+  window.taskFilter = filter;
+  document.querySelectorAll('#tasks-tabs .tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderTasksList(filter);
+}
+
+function renderTasksList(filter) {
+  const el = document.getElementById('tasks-list');
+  if(!el) return;
+  
+  let tasks = filter==='done' ? cache.tasks.filter(t=>t.done) : cache.tasks.filter(t=>!t.done);
+  if(filter==='done') {
+    el.innerHTML = tasks.length ? tasks.map(t=>`
+      <div class="card" style="margin-bottom:8px;opacity:0.8;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="color:var(--green);font-size:16px;">✓</span>
+          <div style="flex:1"><div style="font-size:13px;text-decoration:line-through;color:var(--text3);">${t.title}</div>
+          <div style="font-size:11px;color:var(--text3);">📁 ${t.case_name||'כללי'}</div></div>
+          <button class="btn btn-sm" style="color:var(--amber);border-color:var(--amber)" onclick="undoTask(${t.id})">↩ בטל</button>
+        </div>
+      </div>`).join('') : '<div class="empty-state">אין משימות שהושלמו</div>';
+    return;
+  }
+  if(filter!=='all') tasks = tasks.filter(t=>t.assign===filter);
+  
+  el.innerHTML = tasks.length ? tasks.map(t=>`
+    <div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${PRIORITY_COLORS[t.priority]||PRIORITY_COLORS.med};margin-top:5px;flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:13px;margin-bottom:3px;">${t.title}</div>
+          ${t.description?`<div style="font-size:12px;color:var(--text2);margin-bottom:4px;">${t.description}</div>`:''}
+          <div style="font-size:11px;color:var(--text3);display:flex;gap:10px;flex-wrap:wrap;">
+            <span>📁 ${t.case_name||'כללי'}</span>
+            <span>👤 ${ASSIGN_LABELS[t.assign]||''}</span>
+            ${t.due_date?`<span>📅 ${t.due_date}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;">
+          <button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="completeTask(${t.id})">✓ סיום</button>
+        </div>
+      </div>
+    </div>`).join('') : '<div class="empty-state">אין משימות פתוחות</div>';
+}
+
+async function completeTask(id) {
+  await db.from('tasks').update({ done: true, updated_at: new Date() }).eq('id', id);
+  showNotif('✅ משימה הושלמה');
+  await loadTasks();
+  closeModal();
+}
+
+async function undoTask(id) {
+  await db.from('tasks').update({ done: false, updated_at: new Date() }).eq('id', id);
+  showNotif('↩ משימה הוחזרה');
+  await loadTasks();
+}
+
+// ============================================================
+// LEADS
+// ============================================================
+function renderLeads() {
+  const el = document.getElementById('leads-list');
+  if(!el) return;
+  const search = (document.getElementById('lead-search')?.value||'').toLowerCase();
+  const statusF = document.getElementById('lead-status-filter')?.value||'';
+  
+  let leads = cache.leads.filter(l=>{
+    if(statusF && l.status!==statusF) return false;
+    if(search && !(l.name||'').toLowerCase().includes(search) && !(l.phone||'').includes(search)) return false;
+    return true;
+  });
+  
+  document.getElementById('leads-count').textContent = leads.length + ' לידים';
+  
+  const STATUS_COLORS = {
+    'עדיין לא נוצר קשר':'badge-red','אין מענה':'badge-red',
+    'ענה, ביקש לחזור':'badge-amber','נקבע שיחת ייעוץ':'badge-green',
+    'עסקה נסגרה':'badge-green','לא רלוונטי':'badge-gray',
+  };
+  const STATUS_ORDER = ['עדיין לא נוצר קשר','אין מענה','ענה, ביקש לחזור','נקבע שיחת ייעוץ','עסקה נסגרה','לא רלוונטי'];
+  
+  el.innerHTML = leads.length ? leads.map(l=>`
+    <div style="border-bottom:1px solid var(--border);padding:14px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:180px;">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px;">${l.name} <span class="badge ${STATUS_COLORS[l.status]||'badge-gray'}">${l.status||'ליד חדש'}</span></div>
+          <div style="font-size:12px;color:var(--text2);display:flex;gap:12px;flex-wrap:wrap;">
+            ${l.phone?`<span>📞 <a href="tel:${l.phone}" style="color:var(--blue);text-decoration:none">${l.phone}</a></span>`:''}
+            ${l.source?`<span>📣 ${l.source}</span>`:''}
+            ${l.created_at?`<span>📅 ${new Date(l.created_at).toLocaleDateString('he-IL')}</span>`:''}
+          </div>
+          ${l.free_note?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--bg3);padding:5px 10px;border-radius:6px;">${l.free_note}</div>`:''}
+          <div style="margin-top:8px;display:flex;gap:6px;">
+            <input class="form-input" placeholder="הערה..." value="${l.free_note||''}" id="note-${l.id}" style="font-size:12px;padding:5px 10px;flex:1;max-width:280px;">
+            <button class="btn btn-sm" onclick="saveLeadNote(${l.id})">💾</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:160px;">
+          <select class="form-input" style="font-size:12px;padding:5px 8px;" onchange="updateLeadStatus(${l.id},this.value)">
+            ${STATUS_ORDER.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}
+          </select>
+          <button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="convertLeadToCase(${l.id})">📁 פתח תיק ▶</button>
+        </div>
+      </div>
+    </div>`).join('') : '<div class="empty-state">אין לידים</div>';
+}
+
+async function updateLeadStatus(id, status) {
+  await db.from('leads').update({ status, updated_at: new Date() }).eq('id', id);
+  showNotif('סטטוס עודכן');
+}
+
+async function saveLeadNote(id) {
+  const note = document.getElementById('note-'+id)?.value||'';
+  await db.from('leads').update({ free_note: note, updated_at: new Date() }).eq('id', id);
+  showNotif('✅ הערה נשמרה');
+}
+
+async function importExcel(input) {
+  if(!input.files[0]) return;
+  showNotif('מייבא...');
+  // Use SheetJS
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+  script.onload = async () => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const wb = XLSX.read(e.target.result, { type:'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+      let added = 0, updated = 0;
+      for(const r of rows) {
+        const name = ((r['First name']||r['שם']||'') + ' ' + (r['Last name']||'')).trim();
+        if(!name) continue;
+        const phone = String(r['Phone']||r['טלפון']||'');
+        const existing = cache.leads.find(l=>(phone&&l.phone===phone)||(r['Email']&&l.email===r['Email']));
+        const leadData = {
+          name, phone,
+          email: r['Email']||r['מייל']||'',
+          source: r['Leadsource']||r['Tags']||r['מקור']||'KESHER',
+          status: r['Contact Status']||r['סטטוס']||'עדיין לא נוצר קשר',
+          notes: [r['מה המטרה?'],r['מדוע?'],r['האם קיים תכנון?']].filter(Boolean).join(' | '),
+          updated_at: new Date(),
+        };
+        if(existing) {
+          if(['עדיין לא נוצר קשר','אין מענה',''].includes(existing.status)) {
+            await db.from('leads').update(leadData).eq('id', existing.id);
+            updated++;
+          }
+        } else {
+          await db.from('leads').insert({ ...leadData, created_at: new Date() });
+          added++;
+        }
+      }
+      await loadLeads();
+      showNotif(`✅ יובאו ${added} חדשים, ${updated} עודכנו`);
+    };
+    reader.readAsBinaryString(input.files[0]);
+  };
+  document.head.appendChild(script);
+}
+
+// ============================================================
+// CONSULTS
+// ============================================================
+function renderConsults() {
+  const el = document.getElementById('consults-list');
+  if(!el) return;
+  
+  el.innerHTML = cache.consults.length ? cache.consults.map(c=>{
+    const days = c.followup_date ? Math.round((new Date(c.followup_date)-new Date())/86400000) : null;
+    const fdLabel = days===null?"—":days<0?("🔴 איחור "+Math.abs(days)+" ימים"):days===0?"🔴 היום!":days<=3?("🟠 "+days+" ימים"):("🟢 "+c.followup_date);
+    const score = calcConsultScore(c);
+    
+    let aiHtml = '';
+    if(c.ai_summary || c.ai_recommendation) {
+      let summaryHtml = c.ai_summary ? '<div style="color:var(--text2);margin-bottom:4px;">'+c.ai_summary+'</div>' : '';
+      let recHtml = c.ai_recommendation ? '<div style="color:var(--text2);margin-bottom:4px;">💡 '+c.ai_recommendation+'</div>' : '';
+      let btnHtml = c.ai_email_draft ? '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"><button class="btn btn-sm" onclick="showEmailDraft('+c.id+')" style="color:var(--blue);border-color:var(--blue)">📧 טיוטת מייל</button><button class="btn btn-sm" onclick="showCalendarReminder('+c.id+')" style="color:var(--green);border-color:var(--green)">📅 תזכורת ביומן</button></div>' : '';
+      aiHtml = '<div style="background:var(--blue-dim);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:13px;"><div style="font-weight:600;color:var(--blue);margin-bottom:4px;">🤖 ניתוח AI</div>'+summaryHtml+recHtml+btnHtml+'</div>';
+    }
+    
+    const seriousnessHtml = c.seriousness_level ? '<div style="font-size:11px;color:var(--text3);">רצינות: '+c.seriousness_level+'/5'+(c.closing_probability?' · סגירה: '+c.closing_probability+'%':'')+' </div>' : '';
+    const scoreBg = score>=70?'var(--red)':score>=40?'var(--amber)':'var(--blue)';
+    
+    return '<div class="card" style="margin-bottom:10px;">'+aiHtml+
+      '<div style="display:grid;grid-template-columns:40px 1fr auto auto;gap:12px;align-items:center;">'+
+      '<div style="width:40px;height:40px;border-radius:50%;background:'+scoreBg+';color:white;display:flex;align-items:center;justify-content:center;font-weight:700;">'+score+'</div>'+
+      '<div>'+
+        '<div style="font-weight:600;font-size:13px;">'+c.client_name+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);">'+(c.case_type||'')+' · '+(c.next_step||'')+(c.fee_potential?' · ₪'+c.fee_potential.toLocaleString():'')+' </div>'+
+        seriousnessHtml+
+      '</div>'+
+      '<div style="font-size:12px;font-weight:600;white-space:nowrap;">'+fdLabel+'</div>'+
+      '<div style="display:flex;flex-direction:column;gap:4px;">'+
+        '<button class="btn btn-sm" onclick="openModal(\'edit-consult\','+c.id+')">✏️</button>'+
+        '<button class="btn btn-sm btn-primary" onclick="openCaseFromConsult('+c.id+')" title="פתח תיק">📁</button>'+
+      '</div>'+
+      '</div></div>';
+  }).join('') : '<div class="empty-state">אין שיחות ייעוץ — לחץ + כדי להוסיף</div>';
+}
+
+function calcConsultScore(c) {
+  let s=0;
+  if(c.fee_potential>=50000)s+=40; else if(c.fee_potential>=30000)s+=30; else if(c.fee_potential>=15000)s+=20; else if(c.fee_potential>0)s+=10;
+  s+={'גבוהה מאוד':20,'גבוהה':15,'בינונית':8,'נמוכה':3}[c.complexity_level]||0;
+  s+={'גבוהה':20,'בינונית':12,'נמוכה':4,'אין':0}[c.tax_complexity]||0;
+  s+={'גבוהה':20,'בינונית':12,'נמוכה':4,'פשוטה':2}[c.family_complexity]||0;
+  return Math.min(s,100);
+}
+
+// ============================================================
+// BILLING
+// ============================================================
+function renderBilling() {
+  const el = document.getElementById('billing-content');
+  if(!el) return;
+  const paid = cache.invoices.filter(i=>i.status==='שולם').reduce((s,i)=>s+(i.amount||0),0);
+  const pending = cache.invoices.filter(i=>i.status==='ממתין').reduce((s,i)=>s+(i.amount||0),0);
+  const overdue = cache.invoices.filter(i=>i.status==='פיגור').reduce((s,i)=>s+(i.amount||0),0);
+  
+  el.innerHTML = `
+    <div class="grid-3">
+      <div class="metric-card"><div class="metric-label">שולם</div><div class="metric-value" style="color:var(--green)">₪${(paid/1000).toFixed(0)}K</div></div>
+      <div class="metric-card"><div class="metric-label">ממתין</div><div class="metric-value" style="color:var(--amber)">₪${(pending/1000).toFixed(0)}K</div></div>
+      <div class="metric-card"><div class="metric-label">פיגורים</div><div class="metric-value" style="color:var(--red)">₪${(overdue/1000).toFixed(0)}K</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table class="data-table">
+        <thead><tr><th>תיק</th><th>סכום</th><th>סטטוס</th><th>תאריך</th><th></th></tr></thead>
+        <tbody>${cache.invoices.map(i=>`<tr>
+          <td>${i.case_name||'—'}</td>
+          <td style="font-weight:600">₪${(i.amount||0).toLocaleString()}</td>
+          <td><span class="badge ${i.status==='שולם'?'badge-green':i.status==='פיגור'?'badge-red':'badge-amber'}">${i.status||'ממתין'}</span></td>
+          <td>${i.due_date||'—'}</td>
+          <td>${i.status!=='שולם'?`<button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="markPaid(${i.id})">סמן שולם</button>`:''}</td>
+        </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text3)">אין חשבוניות</td></tr>'}</tbody>
+      </table>
+    </div>`;
+}
+
+async function markPaid(id) {
+  await db.from('invoices').update({ status:'שולם', updated_at: new Date() }).eq('id', id);
+  showNotif('✅ סומן כשולם');
+  await loadInvoices();
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(type, id) {
+  const mc = document.getElementById('modal-content');
+  const cases_options = cache.cases.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  const leads_options = cache.leads.map(l=>`<option value="${l.id}">${l.name} ${l.phone?'· '+l.phone:''}</option>`).join('');
+  
+  if(type==='new-case') {
+    mc.innerHTML = `<div class="modal-title">תיק חדש</div>
+      <div class="form-group"><label class="form-label">שם הלקוח / תיק</label><input class="form-input" id="m-case-name" placeholder="משפחת..."></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">סוג תיק</label><select class="form-input" id="m-case-type">
+          <option>תכנון בין-דורי</option><option>צוואה ונאמנות</option><option>יפוי כוח מתמשך</option><option>העברת נכסים</option><option>הסכם ממון</option>
+        </select></div>
+        <div class="form-group"><label class="form-label">מורכבות</label><select class="form-input" id="m-case-comp">
+          <option>בינונית</option><option>גבוהה</option><option>גבוהה מאוד</option><option>נמוכה</option>
+        </select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">טלפון</label><input class="form-input" id="m-case-phone"></div>
+        <div class="form-group"><label class="form-label">שכ"ט ₪</label><input class="form-input" type="number" id="m-case-fee" placeholder="0"></div>
+      </div>
+      <div class="form-group"><label class="form-label">הערות</label><textarea class="form-input" id="m-case-notes" placeholder="רקע, נושאים..."></textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveCase()">פתח תיק</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+  else if(type==='new-task') {
+    mc.innerHTML = `<div class="modal-title">משימה חדשה</div>
+      <div class="form-group"><label class="form-label">כותרת</label><input class="form-input" id="m-task-title" placeholder="תיאור המשימה..."></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">תיק</label><select class="form-input" id="m-task-case">
+          <option value="">כללי</option>${cases_options}
+        </select></div>
+        <div class="form-group"><label class="form-label">אחראי</label><select class="form-input" id="m-task-assign">
+          <option value="lawyer">עו"ד</option><option value="secretary">מזכירה</option><option value="intern">מתמחה</option><option value="client">לקוח</option>
+        </select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">עדיפות</label><select class="form-input" id="m-task-priority">
+          <option value="med">בינוני</option><option value="high">דחוף</option><option value="low">נמוך</option>
+        </select></div>
+        <div class="form-group"><label class="form-label">תאריך יעד</label><input class="form-input" type="date" id="m-task-due"></div>
+      </div>
+      <div class="form-group"><label class="form-label">תיאור</label><textarea class="form-input" id="m-task-desc" placeholder="פרטים נוספים..."></textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveTask(${id||0})">שמור</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+  else if(type==='new-lead') {
+    mc.innerHTML = `<div class="modal-title">ליד חדש</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">שם</label><input class="form-input" id="m-lead-name" placeholder="שם מלא..."></div>
+        <div class="form-group"><label class="form-label">טלפון</label><input class="form-input" id="m-lead-phone"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">מקור</label><select class="form-input" id="m-lead-source">
+          <option>פייסבוק</option><option>המלצה</option><option>וובינר</option><option>רב מסר</option><option>אחר</option>
+        </select></div>
+        <div class="form-group"><label class="form-label">סטטוס</label><select class="form-input" id="m-lead-status">
+          <option>עדיין לא נוצר קשר</option><option>אין מענה</option><option>ענה, ביקש לחזור</option><option>נקבע שיחת ייעוץ</option>
+        </select></div>
+      </div>
+      <div class="form-group"><label class="form-label">הערות</label><textarea class="form-input" id="m-lead-notes" placeholder="רקע, נושא הפנייה..."></textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveLead()">הוסף ליד</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+  else if(type==='new-consult') {
+    mc.innerHTML = `<div class="modal-title">שיחת ייעוץ חדשה</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">שם לקוח</label><input class="form-input" id="m-c-name"></div>
+        <div class="form-group"><label class="form-label">תאריך שיחה</label><input class="form-input" type="date" id="m-c-date" value="${new Date().toISOString().split('T')[0]}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">משוך מרשימת לידים (אופציונלי)</label>
+        <select class="form-input" id="m-c-lead" onchange="prefillConsultFromLead(this.value)">
+          <option value="">— בחר ליד —</option>${leads_options}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">סוג תיק</label><select class="form-input" id="m-c-type">
+          <option>תכנון בין-דורי</option><option>צוואה ונאמנות</option><option>יפוי כוח מתמשך</option><option>העברת נכסים</option>
+        </select></div>
+        <div class="form-group"><label class="form-label">שכ"ט פוטנציאל ₪</label><input class="form-input" type="number" id="m-c-fee" placeholder="30000"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">מורכבות כללית</label><select class="form-input" id="m-c-comp"><option>בינונית</option><option>גבוהה</option><option>גבוהה מאוד</option><option>נמוכה</option></select></div>
+        <div class="form-group"><label class="form-label">שלב הבא</label><select class="form-input" id="m-c-step">
+          <option>ממתין לפולו-אפ</option><option>שיחה שניה</option><option>הצעת מחיר</option><option>ממתין ללקוח</option><option>נסגר</option><option>לא רלוונטי</option>
+        </select></div>
+      </div>
+      <div class="form-group"><label class="form-label">תאריך פולו-אפ</label><input class="form-input" type="date" id="m-c-followup" value="${new Date(Date.now()+3*86400000).toISOString().split('T')[0]}"></div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text3);margin-bottom:8px;">🤖 ניתוח AI מ-HappyScribe (JSON)</div>
+        <textarea class="form-input" id="m-c-ai" placeholder='{"seriousness_level_1_to_5":4,"lead_heat_score":72,"closing_probability":65}' style="min-height:50px;font-family:monospace;font-size:11px;" oninput="parseConsultAI()"></textarea>
+      </div>
+      <div class="form-group" style="margin-top:8px;"><label class="form-label">הערות שיחה</label><textarea class="form-input" id="m-c-notes" style="min-height:60px;" placeholder="נקודות עיקריות..."></textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveConsult()">שמור</button>
+        <button class="btn" style="color:var(--blue);border-color:var(--blue)" onclick="saveConsultAndAnalyze()">🤖 שמור + נתח</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+  else if(type==='new-case-from-consult') {
+    const c = cache.consults.find(x=>x.id===id);
+    const lastName = c ? c.client_name.split(' ').slice(-1)[0] : '';
+    mc.innerHTML = `<div class="modal-title">📁 פתח תיק מהשיחה</div>
+      <div style="background:var(--blue-dim);border-radius:8px;padding:10px;font-size:12px;color:var(--blue);margin-bottom:14px;">
+        פותח תיק עבור: <strong>${c?.client_name||''}</strong> · ${c?.case_type||''} · ₪${(c?.fee_potential||0).toLocaleString()}
+      </div>
+      <div class="form-group"><label class="form-label">שם התיק</label>
+        <input class="form-input" id="m-cfc-name" value="משפחת ${lastName}"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">סוג תיק</label>
+          <input class="form-input" id="m-cfc-type" value="${c?.case_type||'תכנון בין-דורי'}"></div>
+        <div class="form-group"><label class="form-label">שכ"ט ₪</label>
+          <input class="form-input" type="number" id="m-cfc-fee" value="${c?.fee_potential||0}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">הערות פתיחה</label>
+        <textarea class="form-input" id="m-cfc-notes">${c?.ai_recommendation||c?.notes||''}</textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveCaseFromConsult(${id})">פתח תיק</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+  else if(type==='new-meeting') {
+    mc.innerHTML = `<div class="modal-title">פגישה חדשה</div>
+      <div class="form-group"><label class="form-label">שם לקוח / נושא</label><input class="form-input" id="m-meet-title" placeholder="שם לקוח..."></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">תאריך</label><input class="form-input" type="date" id="m-meet-date" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div class="form-group"><label class="form-label">שעה</label><input class="form-input" type="time" id="m-meet-time" value="10:00"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">סוג</label><select class="form-input" id="m-meet-type">
+          <option value="consult">שיחת ייעוץ</option><option value="followup">פולו-אפ</option><option value="other">אחר</option>
+        </select></div>
+        <div class="form-group"><label class="form-label">משך (דקות)</label><input class="form-input" type="number" id="m-meet-duration" value="60"></div>
+      </div>
+      <div class="form-group"><label class="form-label">קישור Google Meet</label><input class="form-input" id="m-meet-link" placeholder="https://meet.google.com/..."></div>
+      <div class="form-group"><label class="form-label">הערות</label><textarea class="form-input" id="m-meet-notes"></textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveMeeting()">שמור</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+  else if(type==='new-invoice') {
+    mc.innerHTML = `<div class="modal-title">חשבונית חדשה</div>
+      <div class="form-group"><label class="form-label">תיק</label><select class="form-input" id="m-inv-case">${cases_options}</select></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">סכום ₪</label><input class="form-input" type="number" id="m-inv-amount"></div>
+        <div class="form-group"><label class="form-label">תאריך יעד</label><input class="form-input" type="date" id="m-inv-due"></div>
+      </div>
+      <div class="form-group"><label class="form-label">סטטוס</label><select class="form-input" id="m-inv-status"><option>ממתין</option><option>שולם</option><option>פיגור</option></select></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveInvoice()">שמור</button>
+        <button class="btn" onclick="closeModal()">ביטול</button>
+      </div>`;
+  }
+  
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function prefillConsultFromLead(leadId) {
+  if(!leadId) return;
+  const l = cache.leads.find(x=>x.id==leadId);
+  if(l && document.getElementById('m-c-name')) document.getElementById('m-c-name').value = l.name||'';
+}
+
+function parseConsultAI() {
+  const raw = document.getElementById('m-c-ai')?.value?.trim();
+  if(!raw) return;
+  try {
+    const d = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    if(d.seriousness_level_1_to_5) window._ai_seriousness = d.seriousness_level_1_to_5;
+    if(d.lead_heat_score) window._ai_heat = d.lead_heat_score;
+    if(d.case_value_score) window._ai_value = d.case_value_score;
+    if(d.closing_probability) window._ai_closing = String(d.closing_probability).replace('%','');
+    showNotif('✅ AI נטען');
+  } catch(e) {}
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  window._ai_seriousness=null;window._ai_heat=null;window._ai_value=null;window._ai_closing=null;
+}
+
+function closeModalOutside(e) {
+  if(e.target===document.getElementById('modal-overlay')) closeModal();
+}
+
+// ============================================================
+// SAVE FUNCTIONS
+// ============================================================
+async function saveCase() {
+  const name = document.getElementById('m-case-name')?.value?.trim();
+  if(!name) { showNotif('יש להזין שם'); return; }
+  await db.from('cases').insert({
+    name,
+    type: document.getElementById('m-case-type')?.value,
+    complexity: document.getElementById('m-case-comp')?.value,
+    phone: document.getElementById('m-case-phone')?.value||'',
+    fee: parseInt(document.getElementById('m-case-fee')?.value)||0,
+    notes: document.getElementById('m-case-notes')?.value||'',
+    stage: 1, closed: false, created_at: new Date(), updated_at: new Date()
+  });
+  closeModal(); showNotif('✅ תיק נפתח'); await loadCases();
+}
+
+async function saveTask(caseId) {
+  const title = document.getElementById('m-task-title')?.value?.trim();
+  if(!title) { showNotif('יש להזין כותרת'); return; }
+  const selCase = document.getElementById('m-task-case')?.value;
+  const cId = caseId || (selCase ? parseInt(selCase) : null);
+  const caseName = cId ? (cache.cases.find(c=>c.id===cId)?.name||'כללי') : 'כללי';
+  await db.from('tasks').insert({
+    title,
+    case_id: cId, case_name: caseName,
+    assign: document.getElementById('m-task-assign')?.value||'lawyer',
+    priority: document.getElementById('m-task-priority')?.value||'med',
+    due_date: document.getElementById('m-task-due')?.value||null,
+    description: document.getElementById('m-task-desc')?.value||'',
+    done: false, created_at: new Date(), updated_at: new Date()
+  });
+  closeModal(); showNotif('✅ משימה נוספה'); await loadTasks();
+}
+
+async function saveLead() {
+  const name = document.getElementById('m-lead-name')?.value?.trim();
+  if(!name) { showNotif('יש להזין שם'); return; }
+  await db.from('leads').insert({
+    name,
+    phone: document.getElementById('m-lead-phone')?.value||'',
+    source: document.getElementById('m-lead-source')?.value||'אחר',
+    status: document.getElementById('m-lead-status')?.value||'עדיין לא נוצר קשר',
+    notes: document.getElementById('m-lead-notes')?.value||'',
+    created_at: new Date(), updated_at: new Date()
+  });
+  closeModal(); showNotif('✅ ליד נוסף'); await loadLeads();
+}
+
+async function saveConsult() {
+  const name = document.getElementById('m-c-name')?.value?.trim();
+  if(!name) { showNotif('יש להזין שם'); return; }
+  const leadId = document.getElementById('m-c-lead')?.value;
+  await db.from('consults').insert({
+    client_name: name,
+    lead_id: leadId ? parseInt(leadId) : null,
+    case_type: document.getElementById('m-c-type')?.value||'',
+    date: document.getElementById('m-c-date')?.value||null,
+    complexity_level: document.getElementById('m-c-comp')?.value||'בינונית',
+    next_step: document.getElementById('m-c-step')?.value||'ממתין לפולו-אפ',
+    followup_date: document.getElementById('m-c-followup')?.value||null,
+    fee_potential: parseInt(document.getElementById('m-c-fee')?.value)||0,
+    notes: document.getElementById('m-c-notes')?.value||'',
+    seriousness_level: window._ai_seriousness||null,
+    lead_heat_score: window._ai_heat||null,
+    case_value_score: window._ai_value||null,
+    closing_probability: window._ai_closing||null,
+    created_at: new Date(), updated_at: new Date()
+  });
+  // עדכן סטטוס ליד
+  if(leadId) {
+    const step = document.getElementById('m-c-step')?.value;
+    const stepMap = {'ממתין לפולו-אפ':'נקבע שיחת ייעוץ','שיחה שניה':'נקבע שיחת ייעוץ','נסגר':'עסקה נסגרה','לא רלוונטי':'לא רלוונטי'};
+    if(stepMap[step]) await db.from('leads').update({ status:stepMap[step] }).eq('id', parseInt(leadId));
+  }
+  closeModal(); showNotif('✅ שיחת ייעוץ נשמרה'); await loadConsults(); await loadLeads();
+}
+
+async function saveCaseFromConsult(consultId) {
+  const name = document.getElementById('m-cfc-name')?.value?.trim();
+  if(!name) { showNotif('יש להזין שם'); return; }
+  const c = cache.consults.find(x=>x.id===consultId);
+  const { data: newCase } = await db.from('cases').insert({
+    name,
+    type: document.getElementById('m-cfc-type')?.value||'תכנון בין-דורי',
+    fee: parseInt(document.getElementById('m-cfc-fee')?.value)||0,
+    notes: document.getElementById('m-cfc-notes')?.value||'',
+    phone: '',
+    complexity: c?.complexity_level||'בינונית',
+    consult_id: consultId,
+    stage: 1, closed: false,
+    created_at: new Date(), updated_at: new Date()
+  }).select().single();
+  
+  // Update consult status
+  await db.from('consults').update({ next_step:'נסגר', updated_at:new Date() }).eq('id', consultId);
+  // Update lead status
+  if(c?.lead_id) await db.from('leads').update({ status:'עסקה נסגרה' }).eq('id', c.lead_id);
+  
+  closeModal();
+  showNotif('✅ תיק נפתח בהצלחה');
+  await loadCases();
+  await loadConsults();
+  if(newCase) openCaseDetail(newCase.id);
+}
+
+async function saveMeeting() {
+  const title = document.getElementById('m-meet-title')?.value?.trim();
+  if(!title) { showNotif('יש להזין שם'); return; }
+  await db.from('meetings').insert({
+    title,
+    client_name: title,
+    date: document.getElementById('m-meet-date')?.value||null,
+    time: document.getElementById('m-meet-time')?.value||null,
+    type: document.getElementById('m-meet-type')?.value||'consult',
+    duration: parseInt(document.getElementById('m-meet-duration')?.value)||60,
+    meet_link: document.getElementById('m-meet-link')?.value||'',
+    notes: document.getElementById('m-meet-notes')?.value||'',
+    needs_followup: false,
+    created_at: new Date(), updated_at: new Date()
+  });
+  closeModal(); showNotif('✅ פגישה נוספה'); loadCalendarEvents();
+}
+
+async function saveInvoice() {
+  const caseEl = document.getElementById('m-inv-case');
+  const caseId = caseEl?.value ? parseInt(caseEl.value) : null;
+  const caseName = caseId ? (cache.cases.find(c=>c.id===caseId)?.name||'') : '';
+  await db.from('invoices').insert({
+    case_id: caseId, case_name: caseName,
+    amount: parseInt(document.getElementById('m-inv-amount')?.value)||0,
+    due_date: document.getElementById('m-inv-due')?.value||null,
+    status: document.getElementById('m-inv-status')?.value||'ממתין',
+    created_at: new Date(), updated_at: new Date()
+  });
+  closeModal(); showNotif('✅ חשבונית נוספה'); await loadInvoices();
+}
+
+async function convertLeadToCase(leadId) {
+  const l = cache.leads.find(x=>x.id===leadId);
+  if(!l) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+  setTimeout(() => {
+    openModal('new-case');
+    setTimeout(() => {
+      if(document.getElementById('m-case-name')) document.getElementById('m-case-name').value = 'משפחת ' + (l.name.split(' ').slice(-1)[0]);
+      if(document.getElementById('m-case-phone')) document.getElementById('m-case-phone').value = l.phone||'';
+    }, 100);
+  }, 100);
+}
+
+// ============================================================
+// CONSULT AI + CASE OPENING
+// ============================================================
+
+async function openCaseFromConsult(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  // Check if case already exists
+  const existing = cache.cases.find(x=>x.consult_id===consultId);
+  if(existing) {
+    showNotif('תיק כבר קיים — פותח...');
+    openCaseDetail(existing.id);
+    return;
+  }
+  openModal('new-case-from-consult', consultId);
+}
+
+async function saveConsultAndAnalyze() {
+  await saveConsult();
+  // Find last saved consult
+  await loadConsults();
+  const latest = cache.consults[0];
+  if(latest) await analyzeConsult(latest.id);
+}
+
+async function analyzeConsult(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  showNotif('🤖 Claude מנתח את השיחה...');
+  
+  try {
+    const prompt = `אתה יועץ משפטי מנוסה בתכנון העברה בין-דורית.
+נתוני שיחת ייעוץ:
+- לקוח: ${c.client_name}
+- סוג תיק: ${c.case_type||'לא צוין'}
+- פוטנציאל שכ"ט: ₪${c.fee_potential||0}
+- מורכבות: ${c.complexity_level||'בינונית'}
+- שלב הבא: ${c.next_step||'לא צוין'}
+- רצינות לקוח: ${c.seriousness_level||'לא צוין'}/5
+- הערות: ${c.notes||'אין'}
+${c.lead_heat_score ? '- ציון חום ליד: '+c.lead_heat_score : ''}
+
+בהתבסס על הנתונים, ספק:
+1. סיכום קצר (2-3 משפטים)
+2. המלצה אסטרטגית
+3. האם לשלוח מייל פולו-אפ או לתזמן שיחה
+4. טיוטת מייל פולו-אפ קצרה בעברית (אם רלוונטי)
+
+ענה בפורמט JSON בלבד:
+{
+  "summary": "...",
+  "recommendation": "...", 
+  "next_action": "email" או "call" או "wait",
+  "email_draft": "...",
+  "call_reminder": "..."
+}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const result = JSON.parse(clean);
+    
+    await db.from('consults').update({
+      ai_summary: result.summary,
+      ai_recommendation: result.recommendation,
+      ai_next_action: result.next_action,
+      ai_email_draft: result.email_draft,
+      ai_call_reminder: result.call_reminder,
+      updated_at: new Date()
+    }).eq('id', consultId);
+    
+    showNotif('✅ ניתוח AI הושלם');
+    await loadConsults();
+  } catch(e) {
+    showNotif('שגיאה בניתוח — בדוק חיבור');
+    console.error(e);
+  }
+}
+
+function showEmailDraft(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c||!c.ai_email_draft) return;
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📧 טיוטת מייל פולו-אפ</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;margin-bottom:16px;">${c.ai_email_draft}</div>
+    <div style="background:var(--amber-dim);border-radius:8px;padding:12px;font-size:12px;color:var(--amber);margin-bottom:16px;">
+      💡 כדי לשלוח: העתק את הטקסט ← עבור ל-Claude Desktop ← כתוב "שלח את המייל הזה ל-${c.client_name}"
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyEmailDraft(${consultId})">📋 העתק מייל</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyEmailDraft(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c?.ai_email_draft) return;
+  navigator.clipboard.writeText(c.ai_email_draft);
+  showNotif('✅ מייל הועתק — הדבק ב-Claude Desktop');
+  closeModal();
+}
+
+function showCalendarReminder(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const reminder = c.ai_call_reminder || `תזמן שיחת פולו-אפ עם ${c.client_name} בנושא ${c.case_type||'תכנון בין-דורי'}`;
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📅 תזכורת ביומן</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:16px;font-size:13px;margin-bottom:16px;">${reminder}</div>
+    <div style="background:var(--green-dim);border-radius:8px;padding:12px;font-size:12px;color:var(--green);margin-bottom:16px;">
+      💡 כדי לתזמן: עבור ל-Claude Desktop ← כתוב "צור תזכורת ביומן Google לשיחה עם ${c.client_name}"
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyReminderText(${consultId})">📋 העתק הוראה</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyReminderText(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const text = `צור תזכורת ביומן Google לשיחת פולו-אפ עם ${c.client_name} בנושא ${c.case_type||'תכנון בין-דורי'}. תאריך: ${c.followup_date||'בהקדם'}`;
+  navigator.clipboard.writeText(text);
+  showNotif('✅ הועתק — הדבק ב-Claude Desktop');
+  closeModal();
+}
+
+async function changePassword() {
+  const np = document.getElementById('new-password')?.value;
+  const cp = document.getElementById('confirm-password')?.value;
+  const msg = document.getElementById('password-msg');
+  if(!np) { msg.textContent='הזן סיסמה'; msg.style.color='var(--red)'; return; }
+  if(np !== cp) { msg.textContent='הסיסמאות אינן תואמות'; msg.style.color='var(--red)'; return; }
+  await db.from('settings').upsert({ key:'lawyer_password', value:np, updated_at:new Date() }, { onConflict:'key' });
+  msg.textContent='✅ סיסמה עודכנה';
+  msg.style.color='var(--green)';
+  document.getElementById('new-password').value='';
+  document.getElementById('confirm-password').value='';
+}
+
+async function saveSettings() {
+  showNotif('✅ הגדרות נשמרו');
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function renderInternDashboard() {
+  const dateEl = document.getElementById('intern-today');
+  if(dateEl) dateEl.textContent = new Date().toLocaleDateString('he-IL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  
+  const open = cache.tasks.filter(t=>!t.done);
+  const urgent = open.filter(t=>t.priority==='high');
+  const overdue = open.filter(t=>{ if(!t.due_date) return false; return new Date(t.due_date)<new Date(); });
+  const done = cache.tasks.filter(t=>t.done).length;
+  
+  const im = document.getElementById('intern-metrics');
+  if(im) im.innerHTML = [
+    {label:'פתוחות', value:open.length, color:'var(--blue)', s:'tasks'},
+    {label:'דחופות', value:urgent.length, color:urgent.length>0?'var(--red)':'var(--green)', s:'tasks'},
+    {label:'באיחור', value:overdue.length, color:overdue.length>0?'var(--red)':'var(--green)', s:'tasks'},
+    {label:'הושלמו', value:done, color:'var(--green)', s:'tasks'},
+  ].map(m=>`<div class="metric-card" onclick="showSection('${m.s}')"><div class="metric-label">${m.label}</div><div class="metric-value" style="color:${m.color}">${m.value}</div></div>`).join('');
+
+  const urgentList = [...urgent,...overdue.filter(t=>t.priority!=='high')].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).slice(0,6);
+  const iu = document.getElementById('intern-urgent');
+  if(iu) iu.innerHTML = urgentList.length ? urgentList.map(t=>{
+    const isOv = t.due_date && new Date(t.due_date)<new Date();
+    return `<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="width:9px;height:9px;border-radius:50%;background:${isOv?'var(--red)':' var(--amber)'};flex-shrink:0"></div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:500">${t.title}</div>
+      <div style="font-size:11px;color:var(--text3)">📁 ${t.case_name||'כללי'}${t.due_date?' · '+t.due_date:''}</div></div>
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-sm" style="font-size:11px;color:var(--green);border-color:var(--green)" onclick="completeTask(${t.id})">✓</button>
+        <button class="btn btn-sm" style="font-size:11px" onclick="undoComplete(${t.id})">↩</button>
+      </div>
+    </div>`;
+  }).join('') : '<div style="padding:20px;text-align:center;color:var(--green)">✅ אין משימות דחופות</div>';
+
+  const myCases = [...new Set(open.map(t=>t.case_name).filter(c=>c&&c!=='כללי'))];
+  const ic = document.getElementById('intern-cases-list');
+  if(ic) ic.innerHTML = myCases.length ? myCases.map(name=>{
+    const c = cache.cases.find(x=>x.name===name);
+    const n = open.filter(t=>t.case_name===name).length;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="${c?'openCaseDetail('+c.id+')':''}">      <div><div style="font-weight:500;font-size:13px">📁 ${name}</div>${c?`<div style="font-size:11px;color:var(--text3)">${c.type||''} · שלב ${STAGES[(c.stage||1)-1]}</div>`:''}</div>
+      <span style="background:var(--blue);color:#fff;border-radius:10px;padding:2px 8px;font-size:11px">${n}</span>
+    </div>`;
+  }).join('') : '<div style="padding:20px;text-align:center;color:var(--text3)">אין תיקים עם משימות</div>';
+
+  const iat = document.getElementById('intern-all-tasks');
+  const oc = document.getElementById('intern-open-count');
+  if(oc) oc.textContent = open.length + ' משימות פתוחות';
+  if(iat) iat.innerHTML = open.length ? open.sort((a,b)=>({high:0,med:1,low:2}[a.priority]||1)-({high:0,med:1,low:2}[b.priority]||1)).map(t=>{
+    const isOv = t.due_date && new Date(t.due_date)<new Date();
+    return `<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:${PRIORITY_COLORS[t.priority]};flex-shrink:0"></div>
+      <div style="flex:1"><div style="font-size:13px">${t.title}</div>
+      <div style="font-size:11px;color:var(--text3)">📁 ${t.case_name||'כללי'} ${t.due_date?' · '+t.due_date:''}</div></div>
+      <span style="font-size:11px;padding:2px 6px;border-radius:6px;background:${isOv?'var(--red-dim)':' var(--bg3)'};color:${isOv?'var(--red)':' var(--text3)'}">${isOv?'⚠️ איחור':t.priority==='high'?'דחוף':t.priority==='med'?'בינוני':'נמוך'}</span>
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-sm" style="font-size:11px;color:var(--green);border-color:var(--green)" onclick="completeTask(${t.id})">✓</button>
+      </div>
+    </div>`;
+  }).join('') : '<div style="padding:30px;text-align:center;color:var(--green)">✅ כל המשימות הושלמו!</div>';
+}
+
+async function undoComplete(id) {
+  await db.from('tasks').update({ done: false, updated_at: new Date() }).eq('id', id);
+  showNotif('↩ משימה הוחזרה לרשימה');
+  await loadTasks();
+}
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const sec = document.getElementById('section-'+id);
+  const nav = document.getElementById('nav-'+id);
+  if(sec) sec.classList.add('active');
+  if(nav) nav.classList.add('active');
+  
+  if(id==='intern-dashboard') renderInternDashboard();
+  if(id==='cases') renderCases();
+  if(id==='tasks') { renderTasks(); updateTaskTabCounts(); }
+  if(id==='leads') renderLeads();
+  if(id==='consults') renderConsults();
+  if(id==='billing') renderBilling();
+  if(id==='calendar') loadCalendarEvents();
+  if(id==='dashboard') renderDashboard();
+  if(id==='settings') { loadRoles(); const pc=document.getElementById('password-card'); if(pc) pc.style.display=userRole==='lawyer'?'':'none'; }
+}
+
+function updateTaskTabCounts() {
+  const open = cache.tasks.filter(t=>!t.done);
+  const counts = { all:open.length, lawyer:open.filter(t=>t.assign==='lawyer').length,
+    secretary:open.filter(t=>t.assign==='secretary').length, intern:open.filter(t=>t.assign==='intern').length,
+    done:cache.tasks.filter(t=>t.done).length };
+  const tabs = document.querySelectorAll('#tasks-tabs .tab');
+  const keys = ['all','lawyer','secretary','intern','done'];
+  const labels = ['הכל','עו"ד','מזכירה','מתמחה','✅ הושלמו'];
+  tabs.forEach((tab,i)=>{
+    const n = counts[keys[i]]||0;
+    tab.innerHTML = labels[i]+(n>0?` <span style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${n}</span>`:'');
+  });
+}
+
+// ============================================================
+// CALENDAR
+// ============================================================
+let calendarEvents = [];
+
+async function loadCalendarEvents() {
+  const el = document.getElementById('cal-today-list');
+  const uEl = document.getElementById('cal-upcoming-list');
+  if(!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3)">⏳ טוען פגישות...</div>';
+  
+  // Load from Supabase meetings table
+  const today = new Date().toISOString().split('T')[0];
+  const nextWeek = new Date(Date.now() + 7*86400000).toISOString().split('T')[0];
+  
+  const { data } = await db.from('meetings').select('*').gte('date', today).lte('date', nextWeek).order('date').order('time');
+  calendarEvents = data || [];
+  
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const today = new Date().toISOString().split('T')[0];
+  const dateEl = document.getElementById('cal-date-label');
+  if(dateEl) dateEl.textContent = new Date().toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'});
+  
+  const calToday = document.getElementById('cal-today');
+  if(calToday) calToday.textContent = new Date().toLocaleDateString('he-IL', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+
+  const todayMeetings = calendarEvents.filter(e => e.date === today);
+  const upcomingMeetings = calendarEvents.filter(e => e.date > today);
+
+  // Metrics
+  const cm = document.getElementById('cal-metrics');
+  if(cm) cm.innerHTML = [
+    { label:'פגישות היום', value: todayMeetings.length, color:'var(--blue)' },
+    { label:'השבוע הקרוב', value: upcomingMeetings.length, color:'var(--amber)' },
+    { label:'ממתינות לפולו-אפ', value: calendarEvents.filter(e=>e.needs_followup).length, color:'var(--red)' },
+  ].map(m=>`<div class="metric-card"><div class="metric-label">${m.label}</div><div class="metric-value" style="color:${m.color}">${m.value}</div></div>`).join('');
+
+  // Today
+  const tEl = document.getElementById('cal-today-list');
+  if(tEl) tEl.innerHTML = todayMeetings.length ? todayMeetings.map(e => renderMeetingCard(e)).join('') 
+    : '<div class="empty-state">אין פגישות היום</div>';
+
+  // Upcoming
+  const uEl = document.getElementById('cal-upcoming-list');
+  if(uEl) uEl.innerHTML = upcomingMeetings.length ? upcomingMeetings.map(e => renderMeetingCard(e)).join('')
+    : '<div class="empty-state">אין פגישות קרובות</div>';
+}
+
+function renderMeetingCard(e) {
+  const isConsult = e.type === 'consult';
+  const meetLink = e.meet_link || '';
+  const dateStr = new Date(e.date + 'T12:00:00').toLocaleDateString('he-IL', {weekday:'short', day:'numeric', month:'short'});
+  
+  return `<div class="card" style="margin-bottom:10px;padding:14px 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="font-size:16px;">${isConsult?'🎙️':'📅'}</span>
+          <div style="font-weight:600;font-size:14px;">${e.title||e.client_name||'פגישה'}</div>
+          <span class="badge ${isConsult?'badge-blue':'badge-gray'}">${e.type==='consult'?'ייעוץ':e.type==='followup'?'פולו-אפ':'אחר'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text3);display:flex;gap:12px;flex-wrap:wrap;">
+          <span>📅 ${dateStr}</span>
+          ${e.time?`<span>🕐 ${e.time}</span>`:''}
+          ${e.client_name?`<span>👤 ${e.client_name}</span>`:''}
+          ${e.duration?`<span>⏱️ ${e.duration} דק'</span>`:''}
+        </div>
+        ${e.notes?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--bg3);padding:5px 10px;border-radius:6px;">${e.notes}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:120px;">
+        ${meetLink?`<a href="${meetLink}" target="_blank" class="btn btn-sm btn-primary" style="text-decoration:none;text-align:center;">📹 פתח Meet</a>`:''}
+        ${isConsult?`<button class="btn btn-sm" onclick="openHappyScribe('${e.id}')">🎙️ HappyScribe</button>`:''}
+        <button class="btn btn-sm" onclick="openMeetingDetail(${e.id})">✏️ עדכן</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openHappyScribe(meetingId) {
+  window.open('https://www.happyscribe.com', '_blank');
+  showNotif('פתח HappyScribe ← הצטרף לפגישה ← לאחר הסיום חזור כאן');
+}
+
+async function openMeetingDetail(id) {
+  const e = calendarEvents.find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📅 ${e.title||e.client_name||'פגישה'}</div>
+    <div class="form-group"><label class="form-label">שם לקוח</label>
+      <input class="form-input" id="me-client" value="${e.client_name||''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">תאריך</label>
+        <input class="form-input" type="date" id="me-date" value="${e.date||''}"></div>
+      <div class="form-group"><label class="form-label">שעה</label>
+        <input class="form-input" type="time" id="me-time" value="${e.time||''}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">קישור Google Meet</label>
+      <input class="form-input" id="me-link" placeholder="https://meet.google.com/..." value="${e.meet_link||''}"></div>
+    <div class="form-group"><label class="form-label">סטטוס פולו-אפ</label>
+      <select class="form-input" id="me-followup">
+        <option value="0" ${!e.needs_followup?'selected':''}>תקין</option>
+        <option value="1" ${e.needs_followup?'selected':''}>ממתין לפולו-אפ</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">הערות</label>
+      <textarea class="form-input" id="me-notes">${e.notes||''}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveMeetingUpdate(${id})">שמור</button>
+      <button class="btn" style="color:var(--red);border-color:var(--red)" onclick="deleteMeeting(${id})">מחק</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function saveMeetingUpdate(id) {
+  await db.from('meetings').update({
+    client_name: document.getElementById('me-client')?.value||'',
+    date: document.getElementById('me-date')?.value||null,
+    time: document.getElementById('me-time')?.value||null,
+    meet_link: document.getElementById('me-link')?.value||'',
+    needs_followup: document.getElementById('me-followup')?.value==='1',
+    notes: document.getElementById('me-notes')?.value||'',
+    updated_at: new Date()
+  }).eq('id', id);
+  closeModal(); showNotif('✅ פגישה עודכנה'); loadCalendarEvents();
+}
+
+async function deleteMeeting(id) {
+  await db.from('meetings').delete().eq('id', id);
+  closeModal(); showNotif('נמחק'); loadCalendarEvents();
+}
+
+let _originalRole = null;
+
+function previewRole(role) {
+  if(!role) {
+    userRole = _originalRole || 'lawyer';
+    _originalRole = null;
+    document.getElementById('preview-indicator').style.display = 'none';
+  } else {
+    if(!_originalRole) _originalRole = userRole;
+    userRole = role;
+    document.getElementById('preview-indicator').style.display = '';
+  }
+  const roleLabels = { lawyer:'עורך דין', secretary:'מזכירה', intern:'מתמחה' };
+  document.getElementById('user-role').textContent = roleLabels[userRole];
+  applyPermissions();
+  showNotif('תצוגה: ' + (roleLabels[role]||'תפקיד מקורי'));
+}
+
+async function loadRoles() {
+  const el = document.getElementById('roles-list');
+  if(!el) return;
+  const { data } = await db.from('settings').select('key,value').like('key','role_%').order('key');
+  const roles = data||[];
+  const roleLabels = { lawyer:'עורך דין', secretary:'מזכירה', intern:'מתמחה' };
+  el.innerHTML = roles.length ? roles.map(r=>{
+    const email = r.key.replace('role_','');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div><span style="font-size:13px;font-weight:500">${email}</span></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="form-input" style="width:120px;padding:4px 8px;font-size:12px;" onchange="updateRole('${email}',this.value)">
+          <option value="lawyer" ${r.value==='lawyer'?'selected':''}>עורך דין</option>
+          <option value="secretary" ${r.value==='secretary'?'selected':''}>מזכירה</option>
+          <option value="intern" ${r.value==='intern'?'selected':''}>מתמחה</option>
+        </select>
+        <button class="btn btn-sm" style="color:var(--red);border-color:var(--red)" onclick="deleteRole('${email}')">✕</button>
+      </div>
+    </div>`;
+  }).join('') : '<div style="color:var(--text3);font-size:12px;padding:8px 0;">אין תפקידים מוגדרים — כל מייל שאינו ארנסט יקבל תפקיד מתמחה</div>';
+}
+
+async function addRole() {
+  const email = document.getElementById('new-role-email')?.value?.trim().toLowerCase();
+  const role = document.getElementById('new-role-type')?.value;
+  if(!email) { showNotif('הזן מייל'); return; }
+  await db.from('settings').upsert({ key:'role_'+email, value:role, updated_at:new Date() }, { onConflict:'key' });
+  document.getElementById('new-role-email').value = '';
+  showNotif('✅ תפקיד נשמר');
+  loadRoles();
+}
+
+async function updateRole(email, role) {
+  await db.from('settings').upsert({ key:'role_'+email, value:role, updated_at:new Date() }, { onConflict:'key' });
+  showNotif('✅ תפקיד עודכן');
+}
+
+async function deleteRole(email) {
+  await db.from('settings').delete().eq('key','role_'+email);
+  showNotif('נמחק');
+  loadRoles();
+}
+
+// ============================================================
+// CONSULT AI + CASE OPENING
+// ============================================================
+
+async function openCaseFromConsult(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  // Check if case already exists
+  const existing = cache.cases.find(x=>x.consult_id===consultId);
+  if(existing) {
+    showNotif('תיק כבר קיים — פותח...');
+    openCaseDetail(existing.id);
+    return;
+  }
+  openModal('new-case-from-consult', consultId);
+}
+
+async function saveConsultAndAnalyze() {
+  await saveConsult();
+  // Find last saved consult
+  await loadConsults();
+  const latest = cache.consults[0];
+  if(latest) await analyzeConsult(latest.id);
+}
+
+async function analyzeConsult(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  showNotif('🤖 Claude מנתח את השיחה...');
+  
+  try {
+    const prompt = `אתה יועץ משפטי מנוסה בתכנון העברה בין-דורית.
+נתוני שיחת ייעוץ:
+- לקוח: ${c.client_name}
+- סוג תיק: ${c.case_type||'לא צוין'}
+- פוטנציאל שכ"ט: ₪${c.fee_potential||0}
+- מורכבות: ${c.complexity_level||'בינונית'}
+- שלב הבא: ${c.next_step||'לא צוין'}
+- רצינות לקוח: ${c.seriousness_level||'לא צוין'}/5
+- הערות: ${c.notes||'אין'}
+${c.lead_heat_score ? '- ציון חום ליד: '+c.lead_heat_score : ''}
+
+בהתבסס על הנתונים, ספק:
+1. סיכום קצר (2-3 משפטים)
+2. המלצה אסטרטגית
+3. האם לשלוח מייל פולו-אפ או לתזמן שיחה
+4. טיוטת מייל פולו-אפ קצרה בעברית (אם רלוונטי)
+
+ענה בפורמט JSON בלבד:
+{
+  "summary": "...",
+  "recommendation": "...", 
+  "next_action": "email" או "call" או "wait",
+  "email_draft": "...",
+  "call_reminder": "..."
+}`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const result = JSON.parse(clean);
+    
+    await db.from('consults').update({
+      ai_summary: result.summary,
+      ai_recommendation: result.recommendation,
+      ai_next_action: result.next_action,
+      ai_email_draft: result.email_draft,
+      ai_call_reminder: result.call_reminder,
+      updated_at: new Date()
+    }).eq('id', consultId);
+    
+    showNotif('✅ ניתוח AI הושלם');
+    await loadConsults();
+  } catch(e) {
+    showNotif('שגיאה בניתוח — בדוק חיבור');
+    console.error(e);
+  }
+}
+
+function showEmailDraft(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c||!c.ai_email_draft) return;
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📧 טיוטת מייל פולו-אפ</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:16px;font-size:13px;line-height:1.8;white-space:pre-wrap;margin-bottom:16px;">${c.ai_email_draft}</div>
+    <div style="background:var(--amber-dim);border-radius:8px;padding:12px;font-size:12px;color:var(--amber);margin-bottom:16px;">
+      💡 כדי לשלוח: העתק את הטקסט ← עבור ל-Claude Desktop ← כתוב "שלח את המייל הזה ל-${c.client_name}"
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyEmailDraft(${consultId})">📋 העתק מייל</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyEmailDraft(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c?.ai_email_draft) return;
+  navigator.clipboard.writeText(c.ai_email_draft);
+  showNotif('✅ מייל הועתק — הדבק ב-Claude Desktop');
+  closeModal();
+}
+
+function showCalendarReminder(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const reminder = c.ai_call_reminder || `תזמן שיחת פולו-אפ עם ${c.client_name} בנושא ${c.case_type||'תכנון בין-דורי'}`;
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div class="modal-title">📅 תזכורת ביומן</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:16px;font-size:13px;margin-bottom:16px;">${reminder}</div>
+    <div style="background:var(--green-dim);border-radius:8px;padding:12px;font-size:12px;color:var(--green);margin-bottom:16px;">
+      💡 כדי לתזמן: עבור ל-Claude Desktop ← כתוב "צור תזכורת ביומן Google לשיחה עם ${c.client_name}"
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyReminderText(${consultId})">📋 העתק הוראה</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyReminderText(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const text = `צור תזכורת ביומן Google לשיחת פולו-אפ עם ${c.client_name} בנושא ${c.case_type||'תכנון בין-דורי'}. תאריך: ${c.followup_date||'בהקדם'}`;
+  navigator.clipboard.writeText(text);
+  showNotif('✅ הועתק — הדבק ב-Claude Desktop');
+  closeModal();
+}
+
+async function changePassword() {
+  const np = document.getElementById('new-password')?.value;
+  const cp = document.getElementById('confirm-password')?.value;
+  const msg = document.getElementById('password-msg');
+  if(!np) { msg.textContent='הזן סיסמה'; msg.style.color='var(--red)'; return; }
+  if(np !== cp) { msg.textContent='הסיסמאות אינן תואמות'; msg.style.color='var(--red)'; return; }
+  await db.from('settings').upsert({ key:'lawyer_password', value:np, updated_at:new Date() }, { onConflict:'key' });
+  msg.textContent='✅ סיסמה עודכנה';
+  msg.style.color='var(--green)';
+  document.getElementById('new-password').value='';
+  document.getElementById('confirm-password').value='';
+}
+
+async function saveSettings() {
+  showNotif('✅ הגדרות נשמרו');
+}
+
+function showNotif(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', initAuth);
+</script>
+</body>
+</html>
