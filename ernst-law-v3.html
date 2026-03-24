@@ -756,16 +756,23 @@ function renderConsults() {
     const days=c.followup_date?Math.round((new Date(c.followup_date)-new Date())/86400000):null;
     const fdLabel=days===null?"—":days<0?("🔴 איחור "+Math.abs(days)+" ימים"):days===0?"🔴 היום!":days<=3?("🟠 "+days+" ימים"):("🟢 "+c.followup_date);
     const score=calcConsultScore(c);
+    const hasAnalysis=c.ai_summary||c.diagnostic_report||c.fee_proposal;
     let aiHtml='';
-    if(c.ai_summary||c.ai_recommendation){
-      aiHtml=`<div style="background:var(--blue-dim);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:13px;">
-        <div style="font-weight:600;color:var(--blue);margin-bottom:4px;">🤖 ניתוח AI</div>
-        ${c.ai_summary?`<div style="color:var(--text2);margin-bottom:4px;">${c.ai_summary}</div>`:''}
-        ${c.ai_recommendation?`<div style="color:var(--text2);margin-bottom:4px;">💡 ${c.ai_recommendation}</div>`:''}
-        ${c.ai_email_draft?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-          <button class="btn btn-sm" onclick="showEmailDraft(${c.id})" style="color:var(--blue);border-color:var(--blue)">📧 טיוטת מייל</button>
-          <button class="btn btn-sm" onclick="showCalendarReminder(${c.id})" style="color:var(--green);border-color:var(--green)">📅 תזכורת ביומן</button>
-        </div>`:''}
+    if(hasAnalysis){
+      aiHtml=`<div style="background:linear-gradient(135deg,#f0f4ff,#e8f0fd);border-radius:10px;padding:10px 12px;margin-bottom:10px;border:1px solid #c8d8fb;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:700;color:var(--blue);">🤖 ניתוח AI</span>
+          <button onclick="showFullAnalysis(${c.id})" style="background:var(--blue);color:white;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600;">כל התוצרים ←</button>
+        </div>
+        ${c.ai_summary?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;line-height:1.5;">${c.ai_summary}</div>`:''}
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          ${c.diagnostic_report?`<button onclick="showAnalysisSection(${c.id},'diagnostic_report','📊 דוח אבחון')" style="background:white;border:1.5px solid var(--border);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;">📊 דוח</button>`:''}
+          ${c.strategic_alternatives?`<button onclick="showAnalysisSection(${c.id},'strategic_alternatives','♟️ חלופות')" style="background:white;border:1.5px solid var(--border);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;">♟️ חלופות</button>`:''}
+          ${c.fee_proposal?`<button onclick="showAnalysisSection(${c.id},'fee_proposal','💰 הצעת שכ\"ט')" style="background:var(--green-dim);border:1.5px solid var(--green);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;color:var(--green);">💰 שכ"ט</button>`:''}
+          ${c.ai_email_draft?`<button onclick="showEmailDraft(${c.id})" style="background:var(--blue-dim);border:1.5px solid var(--blue);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;color:var(--blue);">📧 מייל</button>`:''}
+          ${c.questionnaire?`<button onclick="showAnalysisSection(${c.id},'questionnaire','📝 שאלון')" style="background:white;border:1.5px solid var(--border);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;">📝 שאלון</button>`:''}
+          ${c.asset_map?`<button onclick="showAnalysisSection(${c.id},'asset_map','🏠 מפת נכסים')" style="background:white;border:1.5px solid var(--border);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer;">🏠 נכסים</button>`:''}
+        </div>
       </div>`;
     }
     const scoreBg=score>=70?'var(--red)':score>=40?'var(--amber)':'var(--blue)';
@@ -786,6 +793,55 @@ function renderConsults() {
       </div>
     </div>`;
   }).join(''):'<div class="empty-state">אין שיחות ייעוץ — לחץ + כדי להוסיף</div>';
+}
+
+function showFullAnalysis(consultId) {
+  const c=cache.consults.find(x=>x.id===consultId); if(!c) return;
+  const sections=[
+    {key:'diagnostic_report', title:'📊 דוח אבחון מקצועי (פנימי)'},
+    {key:'client_summary', title:'👤 סיכום ללקוח'},
+    {key:'case_classification', title:'🗂️ סיווג התיק'},
+    {key:'professional_analysis', title:'🔍 ניתוח מקצועי'},
+    {key:'strategic_alternatives', title:'♟️ חלופות אסטרטגיות'},
+    {key:'tasks_client', title:'✅ משימות ללקוח'},
+    {key:'tasks_lawyer', title:'⚖️ משימות לעורך הדין'},
+    {key:'questionnaire', title:'📝 שאלון השלמת נתונים'},
+    {key:'asset_map', title:'🏠 מפת נכסים משפחתית'},
+    {key:'fee_proposal', title:'💰 הצעת שכר טרחה'},
+    {key:'ai_email_draft', title:'📧 מייל סיכום ללקוח'},
+    {key:'ai_call_reminder', title:'🔔 מייל פולואפ'},
+  ];
+  const content=sections.filter(s=>c[s.key]).map(s=>`
+    <div style="margin-bottom:20px;">
+      <div style="font-weight:700;font-size:14px;color:var(--blue);margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--blue-dim);">${s.title}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.8;white-space:pre-wrap;background:var(--bg3);padding:12px;border-radius:8px;">${c[s.key]}</div>
+      <button class="btn btn-sm" style="margin-top:6px;font-size:11px;" onclick="copyText(\`${c[s.key].replace(/`/g,"'")}\`)">📋 העתק</button>
+    </div>`).join('');
+  document.getElementById('modal-content').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div class="modal-title" style="margin:0;">📋 ניתוח מלא — ${c.client_name}</div>
+      <button class="btn btn-sm" onclick="closeModal()">✕ סגור</button>
+    </div>
+    <div style="max-height:70vh;overflow-y:auto;">${content||'<div class="empty-state">אין תוצרים עדיין — לחץ 🤖 לניתוח</div>'}</div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function showAnalysisSection(consultId, key, title) {
+  const c=cache.consults.find(x=>x.id===consultId); if(!c||!c[key]) return;
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">${title}</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.8;white-space:pre-wrap;background:var(--bg3);padding:16px;border-radius:8px;margin-bottom:16px;max-height:60vh;overflow-y:auto;">${c[key]}</div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyText(\`${c[key].replace(/`/g,"'")}\`)">📋 העתק</button>
+      <button class="btn" onclick="showFullAnalysis(${consultId})">← כל התוצרים</button>
+      <button class="btn" onclick="closeModal()">סגור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text);
+  showNotif('✅ הועתק ללוח');
 }
 
 function calcConsultScore(c) {
