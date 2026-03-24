@@ -821,6 +821,10 @@ async function analyzeConsult(consultId) {
       ai_next_action:result.next_action,
       ai_email_draft:result.email_draft,
       ai_call_reminder:result.call_reminder,
+      ...(result.complexity_level && {complexity_level:result.complexity_level}),
+      ...(result.seriousness_level && {seriousness_level:parseInt(result.seriousness_level)}),
+      ...(result.closing_probability && {closing_probability:String(result.closing_probability).replace('%','')}),
+      ...(result.fee_potential_suggestion && {fee_potential:parseInt(result.fee_potential_suggestion)}),
       updated_at:new Date(),
     }).eq('id',consultId);
     showNotif('✅ ניתוח AI הושלם');
@@ -1016,7 +1020,12 @@ function openModal(type,id) {
         </select></div>
       </div>
       <div class="form-group"><label class="form-label">תאריך פולו-אפ</label><input class="form-input" type="date" id="m-c-followup" value="${new Date(Date.now()+3*86400000).toISOString().split('T')[0]}"></div>
-      <div class="form-group"><label class="form-label">הערות שיחה</label><textarea class="form-input" id="m-c-notes" style="min-height:60px;" placeholder="נקודות עיקריות..."></textarea></div>
+      <div class="form-group"><label class="form-label">הערות קצרות</label><textarea class="form-input" id="m-c-notes" style="min-height:50px;" placeholder="נקודות עיקריות..."></textarea></div>
+      <div class="form-group" style="margin-top:8px;">
+        <label class="form-label" style="display:flex;align-items:center;gap:6px;">🎙️ סיכום שיחה מ-HappyScribe <span style="font-size:11px;color:var(--green);font-weight:400;">(הדבק כאן — AI יקבע פרמטרים אוטומטית)</span></label>
+        <textarea class="form-input" id="m-c-transcript" style="min-height:140px;font-size:12px;" placeholder="הדבק כאן את סיכום השיחה המלא מ-HappyScribe...
+המערכת תנתח את הסיכום ותקבע אוטומטית: מורכבות, רצינות לקוח, פוטנציאל שכ"ט ועוד."></textarea>
+      </div>
       <div class="modal-actions">
         <button class="btn btn-primary" onclick="saveConsult()">שמור</button>
         <button class="btn" style="color:var(--blue);border-color:var(--blue)" onclick="saveConsultAndAnalyze()">🤖 שמור + נתח</button>
@@ -1115,7 +1124,7 @@ async function saveConsult() {
   const name=document.getElementById('m-c-name')?.value?.trim();
   if(!name){showNotif('יש להזין שם');return;}
   const leadId=document.getElementById('m-c-lead')?.value;
-  await db.from('consults').insert({client_name:name,lead_id:leadId?parseInt(leadId):null,case_type:document.getElementById('m-c-type')?.value||'',date:document.getElementById('m-c-date')?.value||null,complexity_level:document.getElementById('m-c-comp')?.value||'בינונית',next_step:document.getElementById('m-c-step')?.value||'ממתין לפולו-אפ',followup_date:document.getElementById('m-c-followup')?.value||null,fee_potential:parseInt(document.getElementById('m-c-fee')?.value)||0,notes:document.getElementById('m-c-notes')?.value||'',created_at:new Date(),updated_at:new Date()});
+  await db.from('consults').insert({client_name:name,lead_id:leadId?parseInt(leadId):null,case_type:document.getElementById('m-c-type')?.value||'',date:document.getElementById('m-c-date')?.value||null,complexity_level:document.getElementById('m-c-comp')?.value||'בינונית',next_step:document.getElementById('m-c-step')?.value||'ממתין לפולו-אפ',followup_date:document.getElementById('m-c-followup')?.value||null,fee_potential:parseInt(document.getElementById('m-c-fee')?.value)||0,notes:document.getElementById('m-c-notes')?.value||'',transcript:document.getElementById('m-c-transcript')?.value||'',created_at:new Date(),updated_at:new Date()});
   if(leadId){const step=document.getElementById('m-c-step')?.value;const stepMap={'ממתין לפולו-אפ':'נקבע שיחת ייעוץ','שיחה שניה':'נקבע שיחת ייעוץ','נסגר':'עסקה נסגרה','לא רלוונטי':'לא רלוונטי'};if(stepMap[step])await db.from('leads').update({status:stepMap[step]}).eq('id',parseInt(leadId));}
   closeModal();showNotif('✅ שיחת ייעוץ נשמרה');await loadConsults();await loadLeads();
 }
