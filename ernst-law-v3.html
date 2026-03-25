@@ -797,6 +797,7 @@ function renderConsults() {
 
 function showFullAnalysis(consultId) {
   const c=cache.consults.find(x=>x.id===consultId); if(!c) return;
+  const EMAIL_KEYS=['ai_email_draft','ai_call_reminder'];
   const sections=[
     {key:'diagnostic_report', title:'📊 דוח אבחון מקצועי (פנימי)'},
     {key:'client_summary', title:'👤 סיכום ללקוח'},
@@ -811,18 +812,24 @@ function showFullAnalysis(consultId) {
     {key:'ai_email_draft', title:'📧 מייל סיכום ללקוח'},
     {key:'ai_call_reminder', title:'🔔 מייל פולואפ'},
   ];
-  const content=sections.filter(s=>c[s.key]).map(s=>`
-    <div style="margin-bottom:20px;">
+  const sectionHtml=sections.filter(s=>c[s.key]).map(s=>{
+    const isEmail=EMAIL_KEYS.includes(s.key);
+    const editBtn=isEmail?`<button class="btn btn-sm" style="font-size:11px;color:var(--amber);border-color:var(--amber);" onclick="editEmail(${c.id},'${s.key}','${s.title}')">✏️ ערוך</button>`:'';
+    return `<div style="margin-bottom:20px;">
       <div style="font-weight:700;font-size:14px;color:var(--blue);margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--blue-dim);">${s.title}</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.8;white-space:pre-wrap;background:var(--bg3);padding:12px;border-radius:8px;">${c[s.key]}</div>
-      <button class="btn btn-sm" style="margin-top:6px;font-size:11px;" onclick="copyText(\`${c[s.key].replace(/`/g,"'")}\`)">📋 העתק</button>
-    </div>`).join('');
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn btn-sm" style="font-size:11px;" onclick="copyText(\`${c[s.key].replace(/`/g,"'")}\`)">📋 העתק</button>
+        ${editBtn}
+      </div>
+    </div>`;
+  }).join('');
   document.getElementById('modal-content').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
       <div class="modal-title" style="margin:0;">📋 ניתוח מלא — ${c.client_name}</div>
       <button class="btn btn-sm" onclick="closeModal()">✕ סגור</button>
     </div>
-    <div style="max-height:70vh;overflow-y:auto;">${content||'<div class="empty-state">אין תוצרים עדיין — לחץ 🤖 לניתוח</div>'}</div>`;
+    <div style="max-height:70vh;overflow-y:auto;">${sectionHtml||'<div class="empty-state">אין תוצרים עדיין — לחץ 🤖 לניתוח</div>'}</div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -844,6 +851,59 @@ function copyText(text) {
   showNotif('✅ הועתק ללוח');
 }
 
+async function editEmail(consultId, fieldKey, title) {
+  const c=cache.consults.find(x=>x.id===consultId); if(!c) return;
+  const currentText=c[fieldKey]||'';
+  document.getElementById('modal-content').innerHTML=`
+    <div class="modal-title">✏️ עריכת ${title}</div>
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;margin-bottom:14px;max-height:200px;overflow-y:auto;color:var(--text2);">${currentText}</div>
+    <div class="form-group">
+      <label class="form-label">הוראה לעריכה</label>
+      <textarea class="form-input" id="edit-instruction" style="min-height:80px;" placeholder="לדוגמה:
+• פרט יותר את נושא המס
+• קצר ל-3 שורות בלבד
+• הוסף הזמנה לפגישה בשבוע הקרוב
+• שנה לטון יותר רשמי
+• הוסף שאלה לגבי מסמכים חסרים"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="applyEmailEdit(${consultId},'${fieldKey}','${title}')">🔄 עדכן עם AI</button>
+      <button class="btn" onclick="showFullAnalysis(${consultId})">← חזור</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function applyEmailEdit(consultId, fieldKey, title) {
+  const c=cache.consults.find(x=>x.id===consultId); if(!c) return;
+  const instruction=document.getElementById('edit-instruction')?.value?.trim();
+  if(!instruction){showNotif('יש להזין הוראה');return;}
+  const currentText=c[fieldKey]||'';
+  showNotif('🤖 מעדכן...');
+  try {
+    const r=await fetch('/api/analyze',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        editMode:true,
+        currentText,
+        instruction,
+        clientName:c.client_name,
+        fieldKey,
+      }),
+    });
+    if(!r.ok) throw new Error('שגיאת שרת');
+    const result=await r.json();
+    const newText=result.edited_text||result.email_draft||result.call_reminder||'';
+    if(!newText){showNotif('שגיאה — לא התקבל טקסט');return;}
+    await db.from('consults').update({[fieldKey]:newText,updated_at:new Date()}).eq('id',consultId);
+    showNotif('✅ עודכן בהצלחה');
+    await loadConsults();
+    showFullAnalysis(consultId);
+  } catch(e) {
+    showNotif('❌ שגיאה: '+e.message);
+  }
+}
+
 function calcConsultScore(c) {
   let s=0;
   if(c.fee_potential>=50000)s+=40;else if(c.fee_potential>=30000)s+=30;else if(c.fee_potential>=15000)s+=20;else if(c.fee_potential>0)s+=10;
@@ -859,7 +919,54 @@ function calcConsultScore(c) {
 async function analyzeConsult(consultId) {
   const c=cache.consults.find(x=>x.id===consultId);
   if(!c) return;
-  showNotif('🤖 Claude מנתח את השיחה...');
+
+  // Show loading card
+  const cardEl=document.querySelector(`[data-consult-id="${consultId}"]`);
+  const loadingId='loading-'+consultId;
+  const existing=document.getElementById(loadingId);
+  if(!existing){
+    const loadDiv=document.createElement('div');
+    loadDiv.id=loadingId;
+    loadDiv.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:999;display:flex;align-items:center;justify-content:center;';
+    loadDiv.innerHTML=`<div style="background:white;border-radius:16px;padding:32px 40px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="font-size:40px;margin-bottom:12px;">🤖</div>
+      <div style="font-size:16px;font-weight:700;color:#1a1f36;margin-bottom:8px;">Claude מנתח את השיחה</div>
+      <div style="font-size:13px;color:#8896a5;margin-bottom:20px;">מפעיל את כל מודולי הניתוח...<br>זה לוקח כ-15-30 שניות</div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-bottom:16px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#3a6fd8;animation:pulse 1.2s infinite 0s;"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#3a6fd8;animation:pulse 1.2s infinite 0.2s;"></div>
+        <div style="width:10px;height:10px;border-radius:50%;background:#3a6fd8;animation:pulse 1.2s infinite 0.4s;"></div>
+      </div>
+      <div id="loading-steps-${consultId}" style="font-size:12px;color:#4a5568;background:#f4f6fb;border-radius:8px;padding:8px 12px;text-align:right;">
+        ⏳ מאתחל ניתוח...
+      </div>
+    </div>`;
+    document.body.appendChild(loadDiv);
+
+    // Add pulse animation
+    if(!document.getElementById('pulse-style')){
+      const style=document.createElement('style');
+      style.id='pulse-style';
+      style.textContent='@keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}';
+      document.head.appendChild(style);
+    }
+
+    // Animated steps
+    const steps=['⏳ מאתחל ניתוח...','🔍 מסווג את סוג התיק...','📊 מנתח מורכבות משפטית...','💰 מעריך שכר טרחה...','📝 מכין דוח אבחון...','📧 כותב מיילים ללקוח...','🏠 ממפה נכסים...','✅ מסיים ניתוח...'];
+    let step=0;
+    const stepEl=document.getElementById('loading-steps-'+consultId);
+    const interval=setInterval(()=>{
+      step=(step+1)%steps.length;
+      if(stepEl) stepEl.textContent=steps[step];
+    },2500);
+    loadDiv._interval=interval;
+  }
+
+  const removeLoading=()=>{
+    const el=document.getElementById(loadingId);
+    if(el){clearInterval(el._interval);el.remove();}
+  };
+
   try {
     const response=await fetch('/api/analyze',{
       method:'POST',
@@ -883,9 +990,11 @@ async function analyzeConsult(consultId) {
       ...(result.fee_potential_suggestion && {fee_potential:parseInt(result.fee_potential_suggestion)}),
       updated_at:new Date(),
     }).eq('id',consultId);
+    removeLoading();
     showNotif('✅ ניתוח AI הושלם');
     await loadConsults();
   } catch(e) {
+    removeLoading();
     showNotif('❌ שגיאה: '+e.message);
     console.error(e);
   }
