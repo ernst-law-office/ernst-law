@@ -1360,9 +1360,17 @@ let calendarEvents=[];
 async function loadCalendarEvents() {
   const el=document.getElementById('cal-today-list'); if(!el) return;
   el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">⏳ טוען...</div>';
-  const past=new Date(Date.now()-30*86400000).toISOString().split('T')[0];
-  const nextWeek=new Date(Date.now()+90*86400000).toISOString().split('T')[0];
-  const {data}=await db.from('meetings').select('*').gte('date',past).lte('date',nextWeek).order('date').order('time');
+  // Show current week + next week (always show 2 weeks ahead from Sunday)
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - dayOfWeek);
+  const endOfNextWeek = new Date(startOfWeek); endOfNextWeek.setDate(startOfWeek.getDate() + 13);
+  // If Thursday or later (day>=4), also show week after next
+  const daysAhead = dayOfWeek >= 4 ? 20 : 13;
+  const endDate = new Date(startOfWeek); endDate.setDate(startOfWeek.getDate() + daysAhead);
+  const weekStart = startOfWeek.toISOString().split('T')[0];
+  const weekEnd = endDate.toISOString().split('T')[0];
+  const {data}=await db.from('meetings').select('*').gte('date',weekStart).lte('date',weekEnd).order('date').order('time');
   calendarEvents=data||[];
   renderCalendar();
 }
@@ -1375,6 +1383,9 @@ function renderCalendar() {
   const todayMeetings=calendarEvents.filter(e=>e.date===today);
   const upcomingMeetings=calendarEvents.filter(e=>e.date>today);
   const pastMeetings=calendarEvents.filter(e=>e.date<today);
+  // Group upcoming by date
+  const groupedUpcoming={};
+  upcomingMeetings.forEach(e=>{if(!groupedUpcoming[e.date])groupedUpcoming[e.date]=[];groupedUpcoming[e.date].push(e);});
   const cm=document.getElementById('cal-metrics');
   if(cm) cm.innerHTML=[
     {label:'פגישות היום',value:todayMeetings.length,color:'var(--blue)'},
@@ -1384,9 +1395,24 @@ function renderCalendar() {
   const tEl=document.getElementById('cal-today-list');
   if(tEl) tEl.innerHTML=todayMeetings.length?todayMeetings.map(e=>renderMeetingCard(e)).join(''):'<div class="empty-state">אין פגישות היום</div>';
   const uEl=document.getElementById('cal-upcoming-list');
-  if(uEl) uEl.innerHTML=upcomingMeetings.length?upcomingMeetings.map(e=>renderMeetingCard(e)).join(''):'<div class="empty-state">אין פגישות קרובות</div>';
-  const pEl=document.getElementById('cal-past-list');
-  if(pEl) pEl.innerHTML=pastMeetings.length?pastMeetings.slice(-10).reverse().map(e=>renderMeetingCard(e)).join(''):'<div class="empty-state">אין פגישות קודמות</div>';
+  if(uEl){
+    if(Object.keys(groupedUpcoming).length){
+      const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+      uEl.innerHTML=Object.keys(groupedUpcoming).sort().map(date=>{
+        const d=new Date(date+'T12:00:00');
+        const dayName=DAYS[d.getDay()];
+        const dateStr=d.toLocaleDateString('he-IL',{day:'numeric',month:'long'});
+        return `<div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--blue);padding:6px 0;border-bottom:1px solid var(--blue-dim);margin-bottom:8px;">
+            📅 יום ${dayName} · ${dateStr} <span style="font-size:11px;color:var(--text3)">(${groupedUpcoming[date].length} פגישות)</span>
+          </div>
+          ${groupedUpcoming[date].map(e=>renderMeetingCard(e)).join('')}
+        </div>`;
+      }).join('');
+    } else {
+      uEl.innerHTML='<div class="empty-state">אין פגישות קרובות השבוע</div>';
+    }
+  }
 }
 function renderMeetingCard(e) {
   const isConsult=e.type==='consult';
