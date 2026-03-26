@@ -762,7 +762,15 @@ async function importExcel(input) {
 // ============================================================
 function renderConsults() {
   const el=document.getElementById('consults-list'); if(!el) return;
-  el.innerHTML=cache.consults.length?cache.consults.map(c=>{
+  // Show only active consults (not closed/irrelevant and no case opened)
+  const activeConsults = cache.consults.filter(c => {
+    if(c.archived) return false;
+    if(['נסגר','לא רלוונטי'].includes(c.next_step)) return false;
+    // Check if a case was opened from this consult
+    if(cache.cases.find(x=>x.consult_id===c.id)) return false;
+    return true;
+  });
+  el.innerHTML=activeConsults.length?activeConsults.map(c=>{
     const days=c.followup_date?Math.round((new Date(c.followup_date)-new Date())/86400000):null;
     const fdLabel=days===null?"—":days<0?("🔴 איחור "+Math.abs(days)+" ימים"):days===0?"🔴 היום!":days<=3?("🟠 "+days+" ימים"):("🟢 "+c.followup_date);
     const score=calcConsultScore(c);
@@ -801,6 +809,7 @@ function renderConsults() {
         <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
           <button class="btn btn-sm" onclick="event.stopPropagation();analyzeConsult(${c.id})" style="color:var(--purple);border-color:var(--purple);font-size:11px;padding:3px 7px;">🤖</button>
           <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openCaseFromConsult(${c.id})" style="font-size:11px;padding:3px 7px;">📁</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();archiveConsult(${c.id})" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 7px;" title="הסר מהרשימה">✕</button>
         </div>
       </div>
     </div>`;
@@ -861,6 +870,19 @@ function showAnalysisSection(consultId, key, title) {
 function copyText(text) {
   navigator.clipboard.writeText(text);
   showNotif('✅ הועתק ללוח');
+}
+
+async function archiveConsult(consultId) {
+  if(!confirm('להסיר שיחה זו מהרשימה?')) return;
+  await db.from('consults').update({archived:true, updated_at:new Date()}).eq('id',consultId);
+  showNotif('✅ שיחה הוסרה מהרשימה');
+  await loadConsults();
+  // Clear analysis panel
+  const panel=document.getElementById('consults-analysis-panel');
+  if(panel && selectedConsultId===consultId) {
+    panel.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--text3);"><div style="font-size:32px;margin-bottom:8px;">🤖</div><div style="font-size:14px;">בחר שיחת ייעוץ</div></div>';
+    selectedConsultId=null;
+  }
 }
 
 let selectedConsultId = null;
