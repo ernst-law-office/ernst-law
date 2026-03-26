@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
     if (action === 'list') {
       const now = new Date().toISOString();
       const future = new Date(Date.now() + 30*86400000).toISOString();
-      const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&timeMax=${future}&singleEvents=true&orderBy=startTime&maxResults=50`, {
+      const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/office%40ernstadv.com/events?timeMin=${now}&timeMax=${future}&singleEvents=true&orderBy=startTime&maxResults=50`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await r.json();
@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
         end: { dateTime: endDt, timeZone: 'Asia/Jerusalem' },
         ...(meeting.meet_link ? {} : { conferenceData: { createRequest: { requestId: Date.now().toString() } } }),
       };
-      const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', {
+      const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/office%40ernstadv.com/events?conferenceDataVersion=1', {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(event),
