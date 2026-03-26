@@ -484,7 +484,7 @@ async function showApp() {
 function applyPermissions() {
   const perms = {
     lawyer:    ['dashboard','cases','tasks','leads','consults','calendar','billing','settings'],
-    secretary: ['leads','tasks'],
+    secretary: ['leads','tasks','consults'],
     intern:    ['intern-dashboard','cases','tasks'],
   };
   const allowed = perms[userRole]||['tasks'];
@@ -697,25 +697,29 @@ function renderLeads() {
   document.getElementById('leads-count').textContent=leads.length+' לידים';
   const STATUS_COLORS={'עדיין לא נוצר קשר':'badge-red','אין מענה':'badge-red','ענה, ביקש לחזור':'badge-amber','נקבע שיחת ייעוץ':'badge-green','עסקה נסגרה':'badge-green','לא רלוונטי':'badge-gray'};
   const STATUS_ORDER=['עדיין לא נוצר קשר','אין מענה','ענה, ביקש לחזור','נקבע שיחת ייעוץ','עסקה נסגרה','לא רלוונטי'];
-  el.innerHTML=leads.length?leads.map(l=>`<div style="border-bottom:1px solid var(--border);padding:14px 0;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+  el.innerHTML=leads.length?leads.map(l=>`<div style="border-bottom:1px solid var(--border);padding:8px 0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <div style="flex:1;min-width:180px;">
-        <div style="font-weight:600;font-size:14px;margin-bottom:4px;">${l.name} <span class="badge ${STATUS_COLORS[l.status]||'badge-gray'}">${l.status||'ליד חדש'}</span></div>
-        <div style="font-size:12px;color:var(--text2);display:flex;gap:12px;flex-wrap:wrap;">
-          ${l.phone?`<span>📞 <a href="tel:${l.phone}" style="color:var(--blue);text-decoration:none">${l.phone}</a></span>`:''}
-          ${l.source?`<span>📣 ${l.source}</span>`:''}
-          ${l.created_at?`<span>📅 ${new Date(l.created_at).toLocaleDateString('he-IL')}</span>`:''}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
+          <span style="font-weight:700;font-size:14px;">${l.name}</span>
+          <span class="badge ${STATUS_COLORS[l.status]||'badge-gray'}">${l.status||'ליד חדש'}</span>
+          ${l.created_at?`<span style="font-size:11px;color:var(--text3);">📅 ${new Date(l.created_at).toLocaleDateString('he-IL')}</span>`:''}
         </div>
-        <div style="margin-top:8px;display:flex;gap:6px;">
-          <input class="form-input" placeholder="הערה..." value="${l.free_note||''}" id="note-${l.id}" style="font-size:12px;padding:5px 10px;flex:1;max-width:280px;">
-          <button class="btn btn-sm" onclick="saveLeadNote(${l.id})">💾</button>
+        <div style="font-size:12px;color:var(--text2);display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+          ${l.phone?`<span>📞 <a href="tel:${l.phone}" style="color:var(--blue);text-decoration:none">${l.phone}</a></span>`:''}
+          ${l.email?`<span>✉️ <a href="mailto:${l.email}" style="color:var(--blue);text-decoration:none">${l.email}</a></span>`:''}
+          ${l.source?`<span style="color:var(--text3);">📣 ${l.source}</span>`:''}
+        </div>
+        <div style="display:flex;gap:5px;align-items:center;">
+          <input class="form-input" placeholder="הערה..." value="${l.free_note||''}" id="note-${l.id}" style="font-size:11px;padding:3px 8px;flex:1;max-width:220px;">
+          <button class="btn btn-sm" onclick="saveLeadNote(${l.id})" style="padding:3px 7px;">💾</button>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;min-width:160px;">
-        <select class="form-input" style="font-size:12px;padding:5px 8px;" onchange="updateLeadStatus(${l.id},this.value)">
+      <div style="display:flex;flex-direction:column;gap:5px;min-width:150px;">
+        <select class="form-input" style="font-size:12px;padding:4px 8px;" onchange="updateLeadStatus(${l.id},this.value)">
           ${STATUS_ORDER.map(s=>`<option ${s===l.status?'selected':''}>${s}</option>`).join('')}
         </select>
-        <button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="convertLeadToCase(${l.id})">📁 פתח תיק ▶</button>
+        <button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue)" onclick="openConsultFromLead(${l.id})">🎙️ קבע שיחת ייעוץ</button>
       </div>
     </div>
   </div>`).join(''):'<div class="empty-state">אין לידים</div>';
@@ -1375,10 +1379,12 @@ function openModal(type,id) {
   document.getElementById('modal-overlay').classList.add('open');
 }
 
-function prefillConsultFromLead(leadId) {
+function prefillConsultFromLead(leadId, targetField) {
   if(!leadId) return;
   const l=cache.leads.find(x=>x.id==leadId);
-  if(l&&document.getElementById('m-c-name')) document.getElementById('m-c-name').value=l.name||'';
+  if(!l) return;
+  const field = targetField || 'm-c-name';
+  if(document.getElementById(field)) document.getElementById(field).value=l.name||'';
 }
 
 function closeModal() {
@@ -1449,6 +1455,99 @@ async function convertLeadToCase(leadId) {
   setTimeout(()=>{openModal('new-case');setTimeout(()=>{if(document.getElementById('m-case-name'))document.getElementById('m-case-name').value='משפחת '+(l.name.split(' ').slice(-1)[0]);if(document.getElementById('m-case-phone'))document.getElementById('m-case-phone').value=l.phone||'';},100);},100);
 }
 
+function openConsultFromLead(leadId) {
+  const l=cache.leads.find(x=>x.id===leadId); if(!l) return;
+  const mc=document.getElementById('modal-content');
+  mc.innerHTML=`
+    <div class="modal-title">🎙️ קביעת שיחת ייעוץ — ${l.name}</div>
+    <div style="background:var(--blue-dim);border-radius:8px;padding:10px;font-size:12px;color:var(--blue);margin-bottom:14px;">
+      ${l.phone?`📞 ${l.phone}`:''}${l.email?` · ✉️ ${l.email}`:''}
+    </div>
+    <div class="form-group">
+      <label class="form-label">תאריך השיחה</label>
+      <input class="form-input" type="date" id="cl-date" value="${new Date().toISOString().split('T')[0]}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">שעה</label>
+      <input class="form-input" type="time" id="cl-time" value="10:00">
+    </div>
+    <div class="form-group">
+      <label class="form-label">סוג תיק</label>
+      <select class="form-input" id="cl-type">
+        <option>תכנון בין-דורי</option>
+        <option>צוואה ונאמנות</option>
+        <option>יפוי כוח מתמשך</option>
+        <option>העברת נכסים</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">הערות</label>
+      <textarea class="form-input" id="cl-notes" placeholder="פרטים נוספים..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveConsultFromLead(${leadId})">✅ קבע שיחה</button>
+      <button class="btn" onclick="closeModal()">ביטול</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function saveConsultFromLead(leadId) {
+  const l=cache.leads.find(x=>x.id===leadId); if(!l) return;
+  const date=document.getElementById('cl-date')?.value;
+  const time=document.getElementById('cl-time')?.value;
+  const type=document.getElementById('cl-type')?.value||'תכנון בין-דורי';
+  const notes=document.getElementById('cl-notes')?.value||'';
+  if(!date){showNotif('יש לבחור תאריך');return;}
+
+  // Create consult
+  await db.from('consults').insert({
+    client_name:l.name,
+    lead_id:l.id,
+    case_type:type,
+    date,
+    notes,
+    next_step:'ממתין לפולו-אפ',
+    followup_date:date,
+    created_at:new Date(), updated_at:new Date()
+  });
+
+  // Create meeting in calendar
+  const {data:newMeeting} = await db.from('meetings').insert({
+    title:l.name,
+    client_name:l.name,
+    date,
+    time,
+    type:'consult',
+    duration:60,
+    notes,
+    needs_followup:false,
+    created_at:new Date(), updated_at:new Date()
+  }).select().single();
+
+  // Auto-sync to Google Calendar if connected
+  if(gcalTokens && newMeeting) {
+    try {
+      const r = await fetch('/api/gcal-sync', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'create', tokens:gcalTokens, meeting:newMeeting}),
+      });
+      if(r.ok) {
+        const data = await r.json();
+        if(data.google_id) await db.from('meetings').update({google_id:data.google_id, meet_link:data.meet_link||''}).eq('id',newMeeting.id);
+      }
+    } catch(e) { console.log('GCal sync failed:', e); }
+  }
+
+  // Update lead status
+  await db.from('leads').update({status:'נקבע שיחת ייעוץ',updated_at:new Date()}).eq('id',l.id);
+
+  closeModal();
+  showNotif('✅ שיחת ייעוץ נקבעה ונוספה ליומן!');
+  await Promise.all([loadConsults(), loadLeads()]);
+  showSection('consults');
+}
+
 // ============================================================
 // CALENDAR
 // ============================================================
@@ -1476,6 +1575,99 @@ function changeWeek(dir) {
 function goToToday() {
   calendarWeekOffset = 0;
   loadCalendarEvents();
+}
+
+function openConsultFromMeeting(meetingId) {
+  const e = calendarEvents.find(x=>x.id===meetingId);
+  if(!e) return;
+
+  // Check if consult already exists for this meeting
+  const existing = cache.consults.find(c=>c.meeting_id===meetingId);
+  if(existing) {
+    showNotif('שיחת ייעוץ כבר קיימת לפגישה זו');
+    showSection('consults');
+    return;
+  }
+
+  const mc = document.getElementById('modal-content');
+  const leads_options = cache.leads.map(l=>`<option value="${l.id}">${l.name}${l.phone?' · '+l.phone:''}</option>`).join('');
+
+  mc.innerHTML = `
+    <div class="modal-title">🎙️ פתח שיחת ייעוץ מהפגישה</div>
+    <div style="background:var(--blue-dim);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--blue);margin-bottom:14px;display:flex;gap:16px;flex-wrap:wrap;">
+      <span>📅 ${e.date}</span>
+      <span>🕐 ${e.time||''}</span>
+      <span>👤 ${e.title||e.client_name||''}</span>
+      ${e.meet_link?`<a href="${e.meet_link}" target="_blank" style="color:var(--blue);">📹 Meet</a>`:''}
+    </div>
+    <div class="form-group">
+      <label class="form-label">שם לקוח</label>
+      <input class="form-input" id="m-cm-name" value="${e.client_name||e.title||''}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">קשר לליד קיים (אופציונלי)</label>
+      <select class="form-input" id="m-cm-lead" onchange="prefillConsultFromLead(this.value,'m-cm-name')">
+        <option value="">— בחר ליד —</option>${leads_options}
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">סוג ייעוץ</label>
+        <select class="form-input" id="m-cm-type">
+          <option>תכנון בין-דורי</option>
+          <option>צוואה ונאמנות</option>
+          <option>יפוי כוח מתמשך</option>
+          <option>העברת נכסים</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">תאריך פולו-אפ</label>
+        <input class="form-input" type="date" id="m-cm-followup" placeholder="יוגדר ע"י AI">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">הערות</label>
+      <textarea class="form-input" id="m-cm-notes" style="min-height:60px;" placeholder="נושא הייעוץ, רקע..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveConsultFromMeeting(${meetingId})">✅ פתח שיחת ייעוץ</button>
+      <button class="btn" onclick="closeModal()">ביטול</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function saveConsultFromMeeting(meetingId) {
+  const e = calendarEvents.find(x=>x.id===meetingId);
+  if(!e) return;
+  const name = document.getElementById('m-cm-name')?.value?.trim();
+  if(!name) { showNotif('יש להזין שם לקוח'); return; }
+  const leadId = document.getElementById('m-cm-lead')?.value;
+  const type = document.getElementById('m-cm-type')?.value||'תכנון בין-דורי';
+  const notes = document.getElementById('m-cm-notes')?.value||'';
+  const followup = document.getElementById('m-cm-followup')?.value||null;
+
+  await db.from('consults').insert({
+    client_name: name,
+    lead_id: leadId ? parseInt(leadId) : null,
+    case_type: type,
+    date: e.date,
+    notes,
+    next_step: 'ממתין לפולו-אפ',
+    followup_date: followup,
+    meeting_id: meetingId,
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+
+  // Update lead status
+  if(leadId) {
+    await db.from('leads').update({status:'נקבע שיחת ייעוץ', updated_at:new Date()}).eq('id', parseInt(leadId));
+  }
+
+  closeModal();
+  showNotif('✅ שיחת ייעוץ נפתחה בהצלחה!');
+  await Promise.all([loadConsults(), loadLeads()]);
+  showSection('consults');
 }
 
 async function loadCalendarEvents() {
@@ -1570,6 +1762,7 @@ function renderMeetingCard(e) {
       <div style="display:flex;flex-direction:column;gap:6px;min-width:120px;">
         ${e.meet_link?`<a href="${e.meet_link}" target="_blank" class="btn btn-sm btn-primary" style="text-decoration:none;text-align:center;">📹 פתח Meet</a>`:''}
         ${!e.google_id?`<button class="btn btn-sm" onclick="addToGoogleCalendar(${e.id})" style="color:var(--green);border-color:var(--green);font-size:11px;">📅 Google</button>`:`<span style="font-size:11px;color:var(--green);padding:4px 0;">✅ Google</span>`}
+        <button class="btn btn-sm" onclick="openConsultFromMeeting(${e.id})" style="color:var(--blue);border-color:var(--blue);font-size:11px;">🎙️ שיחת ייעוץ</button>
         <button class="btn btn-sm" onclick="openMeetingDetail(${e.id})">✏️ עדכן</button>
       </div>
     </div>
