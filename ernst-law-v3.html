@@ -352,6 +352,7 @@ textarea.form-input { resize: vertical; min-height: 70px; }
         <div id="cal-today-list"></div>
       </div>
       <div class="card"><div class="card-title">🗓️ פגישות קרובות</div><div id="cal-upcoming-list"></div></div>
+      <div class="card" style="margin-top:16px;"><div class="card-title">📋 פגישות אחרונות (30 ימים אחורה)</div><div id="cal-past-list"></div></div>
     </div>
 
     <div id="section-billing" class="section">
@@ -1359,9 +1360,9 @@ let calendarEvents=[];
 async function loadCalendarEvents() {
   const el=document.getElementById('cal-today-list'); if(!el) return;
   el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3)">⏳ טוען...</div>';
-  const today=new Date().toISOString().split('T')[0];
-  const nextWeek=new Date(Date.now()+7*86400000).toISOString().split('T')[0];
-  const {data}=await db.from('meetings').select('*').gte('date',today).lte('date',nextWeek).order('date').order('time');
+  const past=new Date(Date.now()-30*86400000).toISOString().split('T')[0];
+  const nextWeek=new Date(Date.now()+90*86400000).toISOString().split('T')[0];
+  const {data}=await db.from('meetings').select('*').gte('date',past).lte('date',nextWeek).order('date').order('time');
   calendarEvents=data||[];
   renderCalendar();
 }
@@ -1373,6 +1374,7 @@ function renderCalendar() {
   if(calToday) calToday.textContent=new Date().toLocaleDateString('he-IL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const todayMeetings=calendarEvents.filter(e=>e.date===today);
   const upcomingMeetings=calendarEvents.filter(e=>e.date>today);
+  const pastMeetings=calendarEvents.filter(e=>e.date<today);
   const cm=document.getElementById('cal-metrics');
   if(cm) cm.innerHTML=[
     {label:'פגישות היום',value:todayMeetings.length,color:'var(--blue)'},
@@ -1383,6 +1385,8 @@ function renderCalendar() {
   if(tEl) tEl.innerHTML=todayMeetings.length?todayMeetings.map(e=>renderMeetingCard(e)).join(''):'<div class="empty-state">אין פגישות היום</div>';
   const uEl=document.getElementById('cal-upcoming-list');
   if(uEl) uEl.innerHTML=upcomingMeetings.length?upcomingMeetings.map(e=>renderMeetingCard(e)).join(''):'<div class="empty-state">אין פגישות קרובות</div>';
+  const pEl=document.getElementById('cal-past-list');
+  if(pEl) pEl.innerHTML=pastMeetings.length?pastMeetings.slice(-10).reverse().map(e=>renderMeetingCard(e)).join(''):'<div class="empty-state">אין פגישות קודמות</div>';
 }
 function renderMeetingCard(e) {
   const isConsult=e.type==='consult';
