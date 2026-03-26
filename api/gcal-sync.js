@@ -23,8 +23,8 @@ module.exports = async function handler(req, res) {
 
     // GET events from Google Calendar
     if (action === 'list') {
-      const now = new Date().toISOString();
-      const future = new Date(Date.now() + 30*86400000).toISOString();
+      const now = new Date(Date.now() - 30*86400000).toISOString(); // 30 days back
+      const future = new Date(Date.now() + 90*86400000).toISOString(); // 90 days forward
       const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/office%40ernstadv.com/events?timeMin=${now}&timeMax=${future}&singleEvents=true&orderBy=startTime&maxResults=50`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
