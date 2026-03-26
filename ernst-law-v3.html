@@ -967,50 +967,56 @@ async function analyzeConsult(consultId) {
     if(el){clearInterval(el._interval);el.remove();}
   };
 
+  const saveResult=async(result)=>{
+    const updateData={updated_at:new Date()};
+    const fields=['ai_summary','ai_recommendation','ai_next_action','ai_email_draft','ai_call_reminder',
+      'diagnostic_report','client_summary','case_classification','professional_analysis',
+      'strategic_alternatives','tasks_client','tasks_lawyer','questionnaire','asset_map','fee_proposal'];
+    // Map summary/recommendation/email fields
+    if(result.summary) updateData.ai_summary=result.summary;
+    if(result.recommendation) updateData.ai_recommendation=result.recommendation;
+    if(result.next_action) updateData.ai_next_action=result.next_action;
+    if(result.email_draft) updateData.ai_email_draft=result.email_draft;
+    if(result.call_reminder) updateData.ai_call_reminder=result.call_reminder;
+    fields.forEach(f=>{if(result[f]) updateData[f]=result[f];});
+    if(result.complexity_level) updateData.complexity_level=result.complexity_level;
+    if(result.seriousness_level) updateData.seriousness_level=parseInt(result.seriousness_level);
+    if(result.closing_probability) updateData.closing_probability=String(result.closing_probability).replace('%','');
+    if(result.fee_potential_suggestion) updateData.fee_potential=parseInt(result.fee_potential_suggestion);
+    const consult=cache.consults.find(x=>x.id===consultId);
+    if(!consult?.followup_date && result.suggested_followup_days){
+      const d=new Date(); d.setDate(d.getDate()+parseInt(result.suggested_followup_days));
+      updateData.followup_date=d.toISOString().split('T')[0];
+    }
+    await db.from('consults').update(updateData).eq('id',consultId);
+    await loadConsults();
+  };
+
   try {
-    const response=await fetch('/api/analyze',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({consultData:c}),
+    // Phase 1 — quick results
+    const stepEl=document.getElementById('loading-steps-'+consultId);
+    if(stepEl) stepEl.textContent='⚡ שלב 1: סיכום, מיילים וסיווג...';
+    const r1=await fetch('/api/analyze',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({consultData:c, phase:1}),
     });
-    if(!response.ok){
-      const err=await response.json().catch(()=>({}));
-      throw new Error(err.error||'שגיאת שרת '+response.status);
-    }
-    const result=await response.json();
-    // Build update object with all available fields
-    const updateData = {
-      ai_summary: result.summary || null,
-      ai_recommendation: result.recommendation || null,
-      ai_next_action: result.next_action || null,
-      ai_email_draft: result.email_draft || null,
-      ai_call_reminder: result.call_reminder || null,
-      diagnostic_report: result.diagnostic_report || null,
-      client_summary: result.client_summary || null,
-      case_classification: result.case_classification || null,
-      professional_analysis: result.professional_analysis || null,
-      strategic_alternatives: result.strategic_alternatives || null,
-      tasks_client: result.tasks_client || null,
-      tasks_lawyer: result.tasks_lawyer || null,
-      questionnaire: result.questionnaire || null,
-      asset_map: result.asset_map || null,
-      fee_proposal: result.fee_proposal || null,
-      updated_at: new Date(),
-    };
-    // Update complexity and scores from AI
-    if(result.complexity_level) updateData.complexity_level = result.complexity_level;
-    if(result.seriousness_level) updateData.seriousness_level = parseInt(result.seriousness_level);
-    if(result.closing_probability) updateData.closing_probability = String(result.closing_probability).replace('%','');
-    if(result.fee_potential_suggestion) updateData.fee_potential = parseInt(result.fee_potential_suggestion);
-    // Set followup_date only if not already set
-    const consult = cache.consults.find(x=>x.id===consultId);
-    if(!consult?.followup_date && result.suggested_followup_days) {
-      const d = new Date(); d.setDate(d.getDate()+parseInt(result.suggested_followup_days));
-      updateData.followup_date = d.toISOString().split('T')[0];
-    }
-    await db.from('consults').update(updateData).eq('id', consultId);
+    if(!r1.ok) throw new Error('שגיאת שרת '+r1.status);
+    const result1=await r1.json();
+    await saveResult(result1);
+    if(stepEl) stepEl.textContent='✅ שלב 1 הושלם! ממשיך לניתוח מעמיק...';
+    showNotif('✅ שלב 1 הושלם — ממשיך...');
+
+    // Phase 2 — deep analysis
+    if(stepEl) stepEl.textContent='🔍 שלב 2: דוח אבחון, הצעת שכ"ט, שאלון...';
+    const r2=await fetch('/api/analyze',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({consultData:c, phase:2}),
+    });
+    if(!r2.ok) throw new Error('שגיאת שרת שלב 2: '+r2.status);
+    const result2=await r2.json();
+    await saveResult(result2);
     removeLoading();
-    showNotif('✅ ניתוח AI הושלם');
+    showNotif('✅ ניתוח מלא הושלם!');
     await loadConsults();
   } catch(e) {
     removeLoading();
