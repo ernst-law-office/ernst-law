@@ -269,6 +269,7 @@ textarea.form-input { resize: vertical; min-height: 70px; }
           <div style="display:flex;gap:16px;margin-top:6px;">
             <span id="tab-active-cases" onclick="window._showClosed=false;renderCases()" style="font-size:13px;cursor:pointer;color:var(--blue);font-weight:700;border-bottom:2px solid var(--blue);padding-bottom:2px;">פעילים</span>
             <span id="tab-closed-cases" onclick="window._showClosed=true;renderCases()" style="font-size:13px;cursor:pointer;color:var(--text3);padding-bottom:2px;">סגורים</span>
+            <span id="tab-archived-cases" onclick="window._showArchivedCases=true;window._showClosed=false;renderCases()" style="font-size:13px;cursor:pointer;color:var(--text3);padding-bottom:2px;">🗃️ ארכיון</span>
           </div>
         </div>
         <button class="btn btn-primary" onclick="openModal('new-case')">+ תיק חדש</button>
@@ -324,7 +325,13 @@ textarea.form-input { resize: vertical; min-height: 70px; }
 
     <div id="section-consults" class="section" style="padding:16px;">
       <div class="page-header" style="margin-bottom:12px;">
-        <div class="page-title">🎙️ שיחות ייעוץ</div>
+        <div>
+          <div class="page-title">🎙️ שיחות ייעוץ</div>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <span id="tab-active-consults" onclick="window._showArchivedConsults=false;renderConsults()" style="font-size:13px;cursor:pointer;color:var(--blue);font-weight:700;border-bottom:2px solid var(--blue);padding-bottom:2px;">פעילות</span>
+            <span id="tab-archived-consults" onclick="window._showArchivedConsults=true;renderConsults()" style="font-size:13px;cursor:pointer;color:var(--text3);padding-bottom:2px;">🗃️ ארכיון</span>
+          </div>
+        </div>
         <button class="btn btn-primary" onclick="openModal('new-consult')">+ שיחת ייעוץ</button>
       </div>
       <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:flex-start;">
@@ -616,9 +623,24 @@ function openCaseDetail(id) {
       </div>`).join()||'<div style="color:var(--text3);font-size:12px;">אין משימות פתוחות</div>'}
     </div>
     ${c.notes?`<div style="background:var(--bg3);border-radius:8px;padding:10px;font-size:12px;color:var(--text2);margin-bottom:14px;">${c.notes}</div>`:''}
+    ${(()=>{
+      const lc=cache.consults.find(x=>x.id===c.consult_id);
+      if(!lc) return '';
+      return `<div style="background:var(--blue-dim);border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #c8d8fb;">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;">🎙️ שיחת ייעוץ מקורית — ${lc.client_name}</div>
+        ${lc.ai_summary?`<div style="font-size:12px;color:var(--text2);margin-bottom:6px;line-height:1.6;">${lc.ai_summary}</div>`:''}
+        ${lc.diagnostic_report?`<div style="font-size:12px;color:var(--text2);white-space:pre-wrap;max-height:100px;overflow-y:auto;background:white;padding:8px;border-radius:6px;margin-bottom:6px;">${lc.diagnostic_report.substring(0,400)}...</div>`:''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${lc.fee_proposal?`<button class="btn btn-sm" style="font-size:11px;color:var(--green);border-color:var(--green);" onclick="closeModal();setTimeout(()=>showAnalysisSection(${lc.id},'fee_proposal','💰 הצעת שכ\"ט'),100)">💰 שכ"ט</button>`:''}
+          ${lc.questionnaire?`<button class="btn btn-sm" style="font-size:11px;" onclick="closeModal();setTimeout(()=>showAnalysisSection(${lc.id},'questionnaire','📝 שאלון'),100)">📝 שאלון</button>`:''}
+          ${lc.strategic_alternatives?`<button class="btn btn-sm" style="font-size:11px;" onclick="closeModal();setTimeout(()=>showAnalysisSection(${lc.id},'strategic_alternatives','♟️ חלופות'),100)">♟️ חלופות</button>`:''}
+        </div>
+      </div>`;
+    })()}
     <div class="modal-actions">
       <button class="btn btn-primary" onclick="closeModal();openModal('new-task',${id})">+ משימה</button>
       ${userRole==='lawyer'?`<button class="btn" style="color:var(--red);border-color:var(--red)" onclick="closeCase(${id})">${c.closed?'פתח מחדש':'סגור תיק'}</button>`:''}
+      ${userRole==='lawyer'&&c.closed?`<button class="btn" style="color:var(--text3);border-color:var(--text3)" onclick="archiveCase(${id})">🗃️ ארכיון</button>`:''}
       <button class="btn" onclick="closeModal()">סגור</button>
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
@@ -633,6 +655,20 @@ async function closeCase(id) {
   const c=cache.cases.find(x=>x.id===id); if(!c) return;
   await db.from('cases').update({closed:!c.closed,updated_at:new Date()}).eq('id',id);
   closeModal(); showNotif(c.closed?'תיק נפתח מחדש':'✅ תיק נסגר'); await loadCases();
+}
+
+async function archiveCase(id) {
+  if(!confirm('להעביר תיק זה לארכיון לקוחות שסיימנו?')) return;
+  await db.from('cases').update({case_archived:true, updated_at:new Date()}).eq('id',id);
+  closeModal();
+  showNotif('🗃️ תיק הועבר לארכיון');
+  await loadCases();
+}
+
+async function restoreCase(id) {
+  await db.from('cases').update({case_archived:false, updated_at:new Date()}).eq('id',id);
+  showNotif('↩ תיק שוחזר');
+  await loadCases();
 }
 
 // ============================================================
@@ -766,14 +802,23 @@ async function importExcel(input) {
 // ============================================================
 function renderConsults() {
   const el=document.getElementById('consults-list'); if(!el) return;
-  // Show only active consults (not closed/irrelevant and no case opened)
-  const activeConsults = cache.consults.filter(c => {
-    if(c.archived) return false;
-    if(['נסגר','לא רלוונטי'].includes(c.next_step)) return false;
-    // Check if a case was opened from this consult
-    if(cache.cases.find(x=>x.consult_id===c.id)) return false;
-    return true;
-  });
+  const showArchived = window._showArchivedConsults;
+
+  // Update tab styles
+  const ta = document.getElementById('tab-active-consults');
+  const tb = document.getElementById('tab-archived-consults');
+  if(ta){ta.style.color=showArchived?'var(--text3)':'var(--blue)';ta.style.borderBottom=showArchived?'2px solid transparent':'2px solid var(--blue)';ta.style.fontWeight=showArchived?'400':'700';}
+  if(tb){tb.style.color=showArchived?'var(--blue)':'var(--text3)';tb.style.borderBottom=showArchived?'2px solid var(--blue)':'2px solid transparent';tb.style.fontWeight=showArchived?'700':'400';}
+
+  const activeConsults = showArchived
+    ? cache.consults.filter(c => c.archived || ['נסגר','לא רלוונטי'].includes(c.next_step) || cache.cases.find(x=>x.consult_id===c.id))
+    : cache.consults.filter(c => {
+        if(c.archived) return false;
+        if(['נסגר','לא רלוונטי'].includes(c.next_step)) return false;
+        if(cache.cases.find(x=>x.consult_id===c.id)) return false;
+        return true;
+      });
+
   el.innerHTML=activeConsults.length?activeConsults.map(c=>{
     const days=c.followup_date?Math.round((new Date(c.followup_date)-new Date())/86400000):null;
     const fdLabel=days===null?"—":days<0?("🔴 איחור "+Math.abs(days)+" ימים"):days===0?"🔴 היום!":days<=3?("🟠 "+days+" ימים"):("🟢 "+c.followup_date);
@@ -813,7 +858,7 @@ function renderConsults() {
         <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
           <button class="btn btn-sm" onclick="event.stopPropagation();analyzeConsult(${c.id})" style="color:var(--purple);border-color:var(--purple);font-size:11px;padding:3px 7px;">🤖</button>
           <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openCaseFromConsult(${c.id})" style="font-size:11px;padding:3px 7px;">📁</button>
-          <button class="btn btn-sm" onclick="event.stopPropagation();archiveConsult(${c.id})" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 7px;" title="הסר מהרשימה">✕</button>
+          ${!showArchived?`<button class="btn btn-sm" onclick="event.stopPropagation();archiveConsult(${c.id})" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 7px;" title="העבר לארכיון">🗃️</button>`:`<button class="btn btn-sm" onclick="event.stopPropagation();restoreConsult(${c.id})" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 7px;" title="שחזר">↩</button>`}
         </div>
       </div>
     </div>`;
@@ -877,9 +922,9 @@ function copyText(text) {
 }
 
 async function archiveConsult(consultId) {
-  if(!confirm('להסיר שיחה זו מהרשימה?')) return;
+  if(!confirm('להעביר שיחה זו לארכיון?')) return;
   await db.from('consults').update({archived:true, updated_at:new Date()}).eq('id',consultId);
-  showNotif('✅ שיחה הוסרה מהרשימה');
+  showNotif('✅ שיחה הועברה לארכיון');
   await loadConsults();
   // Clear analysis panel
   const panel=document.getElementById('consults-analysis-panel');
@@ -901,6 +946,12 @@ function selectConsult(consultId) {
   if(card) { card.style.borderColor = 'var(--blue)'; card.style.background = 'var(--blue-dim)'; }
   selectedConsultId = consultId;
   renderAnalysisPanel(consultId);
+}
+
+async function restoreConsult(consultId) {
+  await db.from('consults').update({archived:false, updated_at:new Date()}).eq('id',consultId);
+  showNotif('↩ שיחה שוחזרה');
+  await loadConsults();
 }
 
 function renderAnalysisPanel(consultId) {
