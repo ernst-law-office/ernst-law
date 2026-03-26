@@ -978,18 +978,37 @@ async function analyzeConsult(consultId) {
       throw new Error(err.error||'שגיאת שרת '+response.status);
     }
     const result=await response.json();
-    await db.from('consults').update({
-      ai_summary:result.summary,
-      ai_recommendation:result.recommendation,
-      ai_next_action:result.next_action,
-      ai_email_draft:result.email_draft,
-      ai_call_reminder:result.call_reminder,
-      ...(result.complexity_level && {complexity_level:result.complexity_level}),
-      ...(result.seriousness_level && {seriousness_level:parseInt(result.seriousness_level)}),
-      ...(result.closing_probability && {closing_probability:String(result.closing_probability).replace('%','')}),
-      ...(result.fee_potential_suggestion && {fee_potential:parseInt(result.fee_potential_suggestion)}),
-      updated_at:new Date(),
-    }).eq('id',consultId);
+    // Build update object with all available fields
+    const updateData = {
+      ai_summary: result.summary || null,
+      ai_recommendation: result.recommendation || null,
+      ai_next_action: result.next_action || null,
+      ai_email_draft: result.email_draft || null,
+      ai_call_reminder: result.call_reminder || null,
+      diagnostic_report: result.diagnostic_report || null,
+      client_summary: result.client_summary || null,
+      case_classification: result.case_classification || null,
+      professional_analysis: result.professional_analysis || null,
+      strategic_alternatives: result.strategic_alternatives || null,
+      tasks_client: result.tasks_client || null,
+      tasks_lawyer: result.tasks_lawyer || null,
+      questionnaire: result.questionnaire || null,
+      asset_map: result.asset_map || null,
+      fee_proposal: result.fee_proposal || null,
+      updated_at: new Date(),
+    };
+    // Update complexity and scores from AI
+    if(result.complexity_level) updateData.complexity_level = result.complexity_level;
+    if(result.seriousness_level) updateData.seriousness_level = parseInt(result.seriousness_level);
+    if(result.closing_probability) updateData.closing_probability = String(result.closing_probability).replace('%','');
+    if(result.fee_potential_suggestion) updateData.fee_potential = parseInt(result.fee_potential_suggestion);
+    // Set followup_date only if not already set
+    const consult = cache.consults.find(x=>x.id===consultId);
+    if(!consult?.followup_date && result.suggested_followup_days) {
+      const d = new Date(); d.setDate(d.getDate()+parseInt(result.suggested_followup_days));
+      updateData.followup_date = d.toISOString().split('T')[0];
+    }
+    await db.from('consults').update(updateData).eq('id', consultId);
     removeLoading();
     showNotif('✅ ניתוח AI הושלם');
     await loadConsults();
@@ -1184,7 +1203,7 @@ function openModal(type,id) {
           <option>ממתין לפולו-אפ</option><option>שיחה שניה</option><option>הצעת מחיר</option><option>ממתין ללקוח</option><option>נסגר</option><option>לא רלוונטי</option>
         </select></div>
       </div>
-      <div class="form-group"><label class="form-label">תאריך פולו-אפ</label><input class="form-input" type="date" id="m-c-followup" value="${new Date(Date.now()+3*86400000).toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label class="form-label">תאריך פולו-אפ <span style="font-size:11px;color:var(--text3);font-weight:400;">(יוגדר אוטומטית לאחר הניתוח)</span></label><input class="form-input" type="date" id="m-c-followup" placeholder="יוגדר ע"י AI"></div>
       <div class="form-group"><label class="form-label">הערות קצרות</label><textarea class="form-input" id="m-c-notes" style="min-height:50px;" placeholder="נקודות עיקריות..."></textarea></div>
       <div class="form-group" style="margin-top:8px;">
         <label class="form-label" style="display:flex;align-items:center;gap:6px;">🎙️ סיכום שיחה מ-HappyScribe <span style="font-size:11px;color:var(--green);font-weight:400;">(הדבק כאן — AI יקבע פרמטרים אוטומטית)</span></label>
