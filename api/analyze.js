@@ -2,6 +2,40 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
   res.setHeader('Access-Control-Allow-Origin', '*');
 
+  // Edit mode — refine existing text
+  if (req.body.editMode) {
+    const { currentText, instruction, clientName, fieldKey } = req.body;
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: `ערוך את הטקסט הבא בהתאם להוראה.
+לקוח: ${clientName}
+טקסט נוכחי:
+${currentText}
+
+הוראה לעריכה: ${instruction}
+
+החזר JSON בלבד: {"edited_text": "הטקסט המעודכן"}` }],
+        }),
+      });
+      const data = await r.json();
+      const text = data.content?.[0]?.text || '';
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) return res.status(500).json({ error: 'No JSON' });
+      return res.status(200).json(JSON.parse(match[0]));
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   const { consultData: c } = req.body;
   if (!c) return res.status(400).json({ error: 'Missing data' });
 
@@ -67,7 +101,8 @@ PROMPT_PROFESSIONAL_ANALYSIS:
   "asset_map": "מפת נכסים: מבנה משפחה + רשימת נכסים עם סוג/בעלות/מידע לתכנון + נקודות לתכנון עתידי",
   "fee_proposal": "הצעת שכר טרחה בשלושה שלבים: א) אבחון ותכנון ב) בניית תשתית משפטית ג) יישום. כלול טווח מחירים ריאלי. ציין כי עלות שלב א מקוזזת מהשכ"ט הכולל אם מתקדמים",
   "email_draft": "מייל סיכום ללקוח (6-8 שורות): מקצועי, ידידותי, לא טכני מדי",
-  "call_reminder": "מייל פולואפ אם הלקוח לא שלח נתונים"
+  "call_reminder": "מייל פולואפ אם הלקוח לא שלח נתונים",
+  "suggested_followup_days": "מספר ימים מומלץ לפולו-אפ (7 או 14 או 21) בהתאם לרצינות הלקוח"
 }`;
 
   try {
