@@ -333,8 +333,13 @@ textarea.form-input { resize: vertical; min-height: 70px; }
     <div id="section-calendar" class="section">
       <div class="page-header">
         <div><div class="page-title">📅 יומן פגישות</div><div class="page-date" id="cal-today"></div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <div id="gcal-status" style="font-size:12px;padding:5px 10px;border-radius:8px;background:var(--bg3);color:var(--text3);">⏳ בודק חיבור...</div>
+          <button class="btn" id="gcal-connect-btn" onclick="connectGoogleCalendar()" style="display:none;color:var(--blue);border-color:var(--blue);">🔗 חבר Google Calendar</button>
+          <button class="btn" onclick="importFromGoogleCalendar()" id="gcal-import-btn" style="display:none;">📥 ייבא מ-Google</button>
           <button class="btn" onclick="loadCalendarEvents()">🔄 רענן</button>
+          <button class="btn" id="gcal-btn" onclick="handleGcalAuth()" style="color:var(--green);border-color:var(--green);">📅 חבר Google Calendar</button>
+          <button class="btn" id="gcal-sync-btn" onclick="syncFromGoogle()" style="display:none;color:var(--blue);border-color:var(--blue);">🔄 סנכרן מ-Google</button>
           <button class="btn btn-primary" onclick="openModal('new-meeting')">+ פגישה חדשה</button>
         </div>
       </div>
@@ -1397,6 +1402,7 @@ function renderMeetingCard(e) {
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;min-width:120px;">
         ${e.meet_link?`<a href="${e.meet_link}" target="_blank" class="btn btn-sm btn-primary" style="text-decoration:none;text-align:center;">📹 פתח Meet</a>`:''}
+        ${!e.google_id?`<button class="btn btn-sm" onclick="addToGoogleCalendar(${e.id})" style="color:var(--green);border-color:var(--green);font-size:11px;">📅 Google</button>`:`<span style="font-size:11px;color:var(--green);padding:4px 0;">✅ Google</span>`}
         <button class="btn btn-sm" onclick="openMeetingDetail(${e.id})">✏️ עדכן</button>
       </div>
     </div>
@@ -1485,6 +1491,89 @@ function renderInternDashboard() {
 // ============================================================
 // NAVIGATION
 // ============================================================
+// ============================================================
+// GOOGLE CALENDAR SYNC
+// ============================================================
+async function checkGcalStatus() {
+  try {
+    const r = await fetch('/api/gcal-sync', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'status'}),
+    });
+    const data = await r.json();
+    const statusEl = document.getElementById('gcal-status');
+    const connectBtn = document.getElementById('gcal-connect-btn');
+    const importBtn = document.getElementById('gcal-import-btn');
+    if(data.connected) {
+      if(statusEl) { statusEl.textContent = '✅ Google Calendar מחובר'; statusEl.style.background='var(--green-dim)'; statusEl.style.color='var(--green)'; }
+      if(importBtn) importBtn.style.display = '';
+      if(connectBtn) connectBtn.style.display = 'none';
+    } else {
+      if(statusEl) { statusEl.textContent = '🔴 לא מחובר'; statusEl.style.background='var(--red-dim)'; statusEl.style.color='var(--red)'; }
+      if(connectBtn) connectBtn.style.display = '';
+      if(importBtn) importBtn.style.display = 'none';
+    }
+  } catch(e) {
+    const statusEl = document.getElementById('gcal-status');
+    if(statusEl) statusEl.textContent = '⚠️ שגיאת חיבור';
+  }
+}
+
+function connectGoogleCalendar() {
+  window.location.href = '/api/gcal-auth';
+}
+
+async function importFromGoogleCalendar() {
+  showNotif('📥 מייבא פגישות מ-Google Calendar...');
+  try {
+    const r = await fetch('/api/gcal-sync', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'import'}),
+    });
+    const data = await r.json();
+    if(data.success) {
+      showNotif(`✅ יובאו ${data.imported} פגישות חדשות (סה"כ ${data.total} בגוגל)`);
+      loadCalendarEvents();
+    } else {
+      showNotif('❌ שגיאה: ' + (data.error||'לא ידוע'));
+    }
+  } catch(e) {
+    showNotif('❌ שגיאה: ' + e.message);
+  }
+}
+
+async function exportToGoogleCalendar(meetingId) {
+  const m = calendarEvents.find(x=>x.id===meetingId);
+  if(!m) return;
+  showNotif('📤 מייצא ל-Google Calendar...');
+  try {
+    const r = await fetch('/api/gcal-sync', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action:'export', meeting:m}),
+    });
+    const data = await r.json();
+    if(data.success) {
+      showNotif('✅ נוסף ל-Google Calendar!');
+      if(data.htmlLink) window.open(data.htmlLink, '_blank');
+      loadCalendarEvents();
+    } else {
+      showNotif('❌ שגיאה: ' + (data.error||'לא ידוע'));
+    }
+  } catch(e) {
+    showNotif('❌ שגיאה: ' + e.message);
+  }
+}
+
+// Check gcal params on load
+window.addEventListener('load', () => {
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('gcal') === 'success') showNotif('✅ Google Calendar חובר בהצלחה!');
+  if(params.get('gcal') === 'error') showNotif('❌ שגיאה בחיבור Google Calendar');
+});
+
 function showSection(id) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1498,7 +1587,7 @@ function showSection(id) {
   if(id==='leads') renderLeads();
   if(id==='consults') renderConsults();
   if(id==='billing') renderBilling();
-  if(id==='calendar') loadCalendarEvents();
+  if(id==='calendar') { loadCalendarEvents(); updateGcalUI(); }
   if(id==='dashboard') renderDashboard();
   if(id==='settings'){loadRoles();const pc=document.getElementById('password-card');if(pc)pc.style.display=userRole==='lawyer'?'':'none';}
 }
@@ -1573,7 +1662,108 @@ function showNotif(msg) {
   setTimeout(()=>el.classList.remove('show'),2500);
 }
 
-document.addEventListener('DOMContentLoaded',initAuth);
+// ============================================================
+// GOOGLE CALENDAR SYNC
+// ============================================================
+let gcalTokens = null;
+
+function initGcal() {
+  // Check for tokens in URL hash (after OAuth callback)
+  const hash = window.location.hash;
+  if (hash.includes('gcal_tokens=')) {
+    try {
+      const tokenStr = decodeURIComponent(hash.split('gcal_tokens=')[1]);
+      gcalTokens = JSON.parse(tokenStr);
+      localStorage.setItem('gcal_tokens', tokenStr);
+      window.location.hash = '';
+      showNotif('✅ Google Calendar מחובר!');
+      updateGcalUI();
+    } catch(e) { console.error(e); }
+  }
+  // Check localStorage
+  const saved = localStorage.getItem('gcal_tokens');
+  if (saved && !gcalTokens) {
+    try { gcalTokens = JSON.parse(saved); updateGcalUI(); } catch(e) {}
+  }
+}
+
+function updateGcalUI() {
+  const btn = document.getElementById('gcal-btn');
+  const syncBtn = document.getElementById('gcal-sync-btn');
+  if (gcalTokens) {
+    if (btn) { btn.textContent = '✅ Google Calendar מחובר'; btn.style.color = 'var(--green)'; btn.onclick = disconnectGcal; }
+    if (syncBtn) syncBtn.style.display = '';
+  }
+}
+
+function handleGcalAuth() {
+  window.location.href = '/api/gcal-auth';
+}
+
+function disconnectGcal() {
+  gcalTokens = null;
+  localStorage.removeItem('gcal_tokens');
+  const btn = document.getElementById('gcal-btn');
+  const syncBtn = document.getElementById('gcal-sync-btn');
+  if (btn) { btn.textContent = '📅 חבר Google Calendar'; btn.onclick = handleGcalAuth; }
+  if (syncBtn) syncBtn.style.display = 'none';
+  showNotif('Google Calendar נותק');
+}
+
+async function syncFromGoogle() {
+  if (!gcalTokens) { showNotif('חבר Google Calendar תחילה'); return; }
+  showNotif('🔄 מסנכרן מ-Google...');
+  try {
+    const r = await fetch('/api/gcal-sync', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'list', tokens: gcalTokens }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    
+    // Save Google events to Supabase (only new ones)
+    let added = 0;
+    for (const e of data.events) {
+      const existing = calendarEvents.find(x => x.google_id === e.google_id);
+      if (!existing) {
+        await db.from('meetings').insert({...e, created_at: new Date(), updated_at: new Date()});
+        added++;
+      }
+    }
+    showNotif(`✅ סונכרנו ${added} פגישות חדשות מ-Google`);
+    loadCalendarEvents();
+  } catch(e) {
+    showNotif('❌ שגיאה: ' + e.message);
+  }
+}
+
+async function addToGoogleCalendar(meetingId) {
+  if (!gcalTokens) { 
+    showNotif('חבר Google Calendar תחילה');
+    return;
+  }
+  const e = calendarEvents.find(x => x.id === meetingId);
+  if (!e) return;
+  showNotif('📅 מוסיף ל-Google Calendar...');
+  try {
+    const r = await fetch('/api/gcal-sync', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ action: 'create', tokens: gcalTokens, meeting: e }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    // Update meeting with google_id and meet_link
+    await db.from('meetings').update({ google_id: data.google_id, meet_link: data.meet_link || e.meet_link, updated_at: new Date() }).eq('id', meetingId);
+    showNotif('✅ נוסף ל-Google Calendar!');
+    loadCalendarEvents();
+  } catch(e) {
+    showNotif('❌ שגיאה: ' + e.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => { initAuth(); initGcal(); });
 </script>
 </body>
 </html>
