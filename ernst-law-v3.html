@@ -322,12 +322,21 @@ textarea.form-input { resize: vertical; min-height: 70px; }
       <div class="card" style="padding:0;"><div id="leads-list" style="padding:0 16px;"></div></div>
     </div>
 
-    <div id="section-consults" class="section">
-      <div class="page-header">
+    <div id="section-consults" class="section" style="padding:16px;">
+      <div class="page-header" style="margin-bottom:12px;">
         <div class="page-title">🎙️ שיחות ייעוץ</div>
         <button class="btn btn-primary" onclick="openModal('new-consult')">+ שיחת ייעוץ</button>
       </div>
-      <div id="consults-list"></div>
+      <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:flex-start;">
+        <div id="consults-list" style="min-width:0;"></div>
+        <div id="consults-analysis-panel" style="position:sticky;top:16px;background:white;border-radius:12px;box-shadow:var(--shadow);padding:20px;min-height:200px;">
+          <div style="text-align:center;padding:40px 20px;color:var(--text3);">
+            <div style="font-size:32px;margin-bottom:8px;">🤖</div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">לוח ניתוח AI</div>
+            <div style="font-size:12px;">בחר שיחת ייעוץ כדי לראות את תוצרי הניתוח</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="section-calendar" class="section" style="padding:16px;">
@@ -758,8 +767,8 @@ function renderConsults() {
     const fdLabel=days===null?"—":days<0?("🔴 איחור "+Math.abs(days)+" ימים"):days===0?"🔴 היום!":days<=3?("🟠 "+days+" ימים"):("🟢 "+c.followup_date);
     const score=calcConsultScore(c);
     const hasAnalysis=c.ai_summary||c.diagnostic_report||c.fee_proposal;
-    let aiHtml='';
-    if(hasAnalysis){
+    let aiHtml=''; // Analysis shown in side panel
+    if(false && hasAnalysis){
       aiHtml=`<div style="background:linear-gradient(135deg,#f0f4ff,#e8f0fd);border-radius:10px;padding:12px 14px;margin-bottom:12px;border:1px solid #c8d8fb;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <span style="font-size:13px;font-weight:700;color:var(--blue);">🤖 ניתוח AI</span>
@@ -777,19 +786,21 @@ function renderConsults() {
       </div>`;
     }
     const scoreBg=score>=70?'var(--red)':score>=40?'var(--amber)':'var(--blue)';
-    return `<div class="card" style="margin-bottom:12px;">${aiHtml}
-      <div style="display:flex;gap:14px;align-items:flex-start;">
-        <div style="width:46px;height:46px;border-radius:50%;background:${scoreBg};color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;">${score}</div>
+    const fdColor=fdLabel.includes('🔴')?'var(--red)':fdLabel.includes('🟠')?'var(--amber)':'var(--green)';
+    return `<div class="card" id="consult-card-${c.id}" style="margin-bottom:8px;padding:12px 14px;cursor:pointer;border:2px solid transparent;transition:border-color 0.15s;" onclick="selectConsult(${c.id})">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:38px;height:38px;border-radius:50%;background:${scoreBg};color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">${score}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px;">${c.client_name}</div>
-          <div style="font-size:13px;color:var(--text2);margin-bottom:3px;">${c.case_type||''} · ${c.next_step||''}${c.fee_potential?' · ₪'+c.fee_potential.toLocaleString():''}</div>
-          ${c.seriousness_level?`<div style="font-size:12px;color:var(--text3);">רצינות: ${c.seriousness_level}/5${c.closing_probability?' · סגירה: '+c.closing_probability+'%':''}</div>`:''}
-          <div style="font-size:13px;font-weight:600;color:${fdLabel.includes('🔴')?'var(--red)':fdLabel.includes('🟠')?'var(--amber)':'var(--green)'};margin-top:4px;">${fdLabel}</div>
+          <div style="font-weight:700;font-size:14px;margin-bottom:2px;">${c.client_name}</div>
+          <div style="font-size:12px;color:var(--text2);">${c.case_type||''} ${c.fee_potential?'· ₪'+c.fee_potential.toLocaleString():''}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+            <div style="font-size:11px;font-weight:600;color:${fdColor};">${fdLabel}</div>
+            ${hasAnalysis?'<span style="font-size:10px;background:var(--blue-dim);color:var(--blue);padding:2px 6px;border-radius:10px;">🤖 נותח</span>':''}
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;">
-          <button class="btn btn-sm" onclick="openModal('edit-consult',${c.id})" style="font-size:13px;">✏️</button>
-          <button class="btn btn-sm btn-primary" onclick="openCaseFromConsult(${c.id})" title="פתח תיק" style="font-size:13px;">📁</button>
-          <button class="btn btn-sm" onclick="analyzeConsult(${c.id})" title="נתח עם AI" style="color:var(--purple);border-color:var(--purple);font-size:13px;">🤖</button>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
+          <button class="btn btn-sm" onclick="event.stopPropagation();analyzeConsult(${c.id})" style="color:var(--purple);border-color:var(--purple);font-size:11px;padding:3px 7px;">🤖</button>
+          <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openCaseFromConsult(${c.id})" style="font-size:11px;padding:3px 7px;">📁</button>
         </div>
       </div>
     </div>`;
@@ -850,6 +861,74 @@ function showAnalysisSection(consultId, key, title) {
 function copyText(text) {
   navigator.clipboard.writeText(text);
   showNotif('✅ הועתק ללוח');
+}
+
+let selectedConsultId = null;
+
+function selectConsult(consultId) {
+  // Highlight selected card
+  document.querySelectorAll('[id^="consult-card-"]').forEach(el => {
+    el.style.borderColor = 'transparent';
+    el.style.background = 'white';
+  });
+  const card = document.getElementById('consult-card-'+consultId);
+  if(card) { card.style.borderColor = 'var(--blue)'; card.style.background = 'var(--blue-dim)'; }
+  selectedConsultId = consultId;
+  renderAnalysisPanel(consultId);
+}
+
+function renderAnalysisPanel(consultId) {
+  const c = cache.consults.find(x=>x.id===consultId);
+  if(!c) return;
+  const panel = document.getElementById('consults-analysis-panel');
+  if(!panel) return;
+
+  const EMAIL_KEYS = ['ai_email_draft','ai_call_reminder'];
+  const sections = [
+    {key:'ai_summary', title:'📝 סיכום', noEdit:true},
+    {key:'ai_recommendation', title:'💡 המלצה', noEdit:true},
+    {key:'client_summary', title:'👤 סיכום ללקוח'},
+    {key:'diagnostic_report', title:'📊 דוח אבחון'},
+    {key:'case_classification', title:'🗂️ סיווג תיק'},
+    {key:'strategic_alternatives', title:'♟️ חלופות אסטרטגיות'},
+    {key:'fee_proposal', title:'💰 הצעת שכ"ט'},
+    {key:'tasks_client', title:'✅ משימות ללקוח'},
+    {key:'tasks_lawyer', title:'⚖️ משימות לעו"ד'},
+    {key:'questionnaire', title:'📝 שאלון ללקוח'},
+    {key:'asset_map', title:'🏠 מפת נכסים'},
+    {key:'ai_email_draft', title:'📧 מייל סיכום'},
+    {key:'ai_call_reminder', title:'🔔 מייל פולואפ'},
+  ];
+
+  const hasAny = sections.some(s=>c[s.key]);
+
+  const sectionsHtml = hasAny ? sections.filter(s=>c[s.key]).map(s=>{
+    const isEmail = EMAIL_KEYS.includes(s.key);
+    return `<div style="margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+        <span>${s.title}</span>
+        <div style="display:flex;gap:4px;">
+          ${isEmail?`<button onclick="editEmail(${c.id},'${s.key}','${s.title}')" style="background:var(--amber-dim);border:1px solid var(--amber);border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;color:var(--amber);">✏️ ערוך</button>`:''}
+          <button onclick="copyText(\`${(c[s.key]||'').replace(/`/g,"'")}\`)" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;">📋</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;white-space:pre-wrap;background:var(--bg3);padding:10px;border-radius:8px;max-height:120px;overflow-y:auto;">${c[s.key]}</div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:30px;color:var(--text3);">
+    <div style="font-size:24px;margin-bottom:8px;">🤖</div>
+    <div style="font-size:13px;margin-bottom:12px;">אין ניתוח עדיין</div>
+    <button class="btn btn-primary" onclick="analyzeConsult(${c.id})">🤖 נתח עכשיו</button>
+  </div>`;
+
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--border);">
+      <div>
+        <div style="font-size:15px;font-weight:700;">${c.client_name}</div>
+        <div style="font-size:12px;color:var(--text3);">${c.case_type||''} · ${c.next_step||''}</div>
+      </div>
+      <button class="btn btn-sm" onclick="analyzeConsult(${c.id})" style="color:var(--purple);border-color:var(--purple);">🤖 נתח מחדש</button>
+    </div>
+    <div style="max-height:calc(100vh - 200px);overflow-y:auto;">${sectionsHtml}</div>`;
 }
 
 async function editEmail(consultId, fieldKey, title) {
