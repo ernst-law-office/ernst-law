@@ -1,0 +1,25 @@
+{
+  "name": "משרד עו\"ד ארנסט",
+  "short_name": "ארנסט",
+  "description": "מערכת ניהול משרד ארנסט — תכנון העברה בין-דורית",
+  "start_url": "/ernst-law-v3.html",
+  "display": "standalone",
+  "background_color": "#1a1f36",
+  "theme_color": "#1a1f36",
+  "orientation": "portrait-primary",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231a1f36'/><text y='130' x='96' text-anchor='middle' font-size='120'>⚖️</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%231a1f36'/><text y='360' x='256' text-anchor='middle' font-size='320'>⚖️</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}
