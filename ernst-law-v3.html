@@ -2,7 +2,13 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ארנסט">
+<meta name="theme-color" content="#1a1f36">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231a1f36'/><text y='130' x='96' text-anchor='middle' font-size='120'>⚖️</text></svg>">
 <title>משרד עו"ד ארנסט | מערכת ניהול</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -162,7 +168,27 @@ textarea.form-input { resize: vertical; min-height: 70px; }
   .metrics-grid { grid-template-columns: 1fr 1fr; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
-  .section { padding: 16px; }
+  .section { padding: 12px; }
+  .card { padding: 14px; }
+  .page-title { font-size: 18px; }
+  .modal { padding: 20px; border-radius: 12px; }
+  /* Consults two-column → single on mobile */
+  #section-consults > div > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+  #consults-analysis-panel { position: static !important; }
+  /* Calendar weekly grid scroll */
+  #cal-weekly-grid > div { min-width: 560px; }
+}
+@media (max-width: 480px) {
+  .sidebar { width: 52px; }
+  .nav-icon { font-size: 18px; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric-value { font-size: 22px; }
+  .section { padding: 10px; }
+  /* Stack page header on very small screens */
+  .page-header { flex-direction: column; align-items: flex-start; }
+  /* Safe area for iPhone notch */
+  #app { padding-bottom: env(safe-area-inset-bottom); }
+  .sidebar { padding-bottom: env(safe-area-inset-bottom); }
 }
 </style>
 </head>
@@ -2174,7 +2200,50 @@ async function addToGoogleCalendar(meetingId) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => { initAuth(); initGcal(); });
+document.addEventListener('DOMContentLoaded', () => { initAuth(); initGcal(); initPWA(); });
+
+// ============================================================
+// PWA
+// ============================================================
+let deferredInstallPrompt = null;
+
+function initPWA() {
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW:', e));
+  }
+
+  // Capture install prompt
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    showInstallBanner();
+  });
+}
+
+function showInstallBanner() {
+  // Show only if not already installed
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  const banner = document.createElement('div');
+  banner.id = 'pwa-banner';
+  banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1f36;color:white;padding:12px 20px;border-radius:12px;display:flex;align-items:center;gap:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);font-size:13px;max-width:320px;width:90%;';
+  banner.innerHTML = '<span style="font-size:20px;">⚖️</span><div style="flex:1"><div style="font-weight:600;">הוסף למסך הבית</div><div style="font-size:11px;opacity:0.7;">גישה מהירה כמו אפליקציה</div></div><button onclick="installPWA()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:600;">הוסף</button><button onclick="document.getElementById('pwa-banner').remove()" style="background:none;border:none;color:white;opacity:0.6;cursor:pointer;font-size:18px;padding:0 4px;">×</button>';
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 15000);
+}
+
+async function installPWA() {
+  if (!deferredInstallPrompt) {
+    // iOS instructions
+    showNotif('ב-Safari: לחץ שתף → "הוסף למסך הבית"');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if (outcome === 'accepted') showNotif('✅ נוסף למסך הבית!');
+  deferredInstallPrompt = null;
+  document.getElementById('pwa-banner')?.remove();
+}
 </script>
 </body>
 </html>
