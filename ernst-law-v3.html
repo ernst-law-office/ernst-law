@@ -2227,7 +2227,24 @@ function showInstallBanner() {
   const banner = document.createElement('div');
   banner.id = 'pwa-banner';
   banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1f36;color:white;padding:12px 20px;border-radius:12px;display:flex;align-items:center;gap:12px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.3);font-size:13px;max-width:320px;width:90%;';
-  banner.innerHTML = '<span style="font-size:20px;">⚖️</span><div style="flex:1"><div style="font-weight:600;">הוסף למסך הבית</div><div style="font-size:11px;opacity:0.7;">גישה מהירה כמו אפליקציה</div></div><button onclick="installPWA()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:600;">הוסף</button><button onclick="document.getElementById('pwa-banner').remove()" style="background:none;border:none;color:white;opacity:0.6;cursor:pointer;font-size:18px;padding:0 4px;">×</button>';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.style.cssText = 'background:none;border:none;color:white;opacity:0.6;cursor:pointer;font-size:18px;padding:0 4px;';
+  closeBtn.onclick = () => banner.remove();
+  const addBtn = document.createElement('button');
+  addBtn.textContent = 'הוסף';
+  addBtn.style.cssText = 'background:var(--blue,#3a6fd8);color:white;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;font-weight:600;';
+  addBtn.onclick = installPWA;
+  const text = document.createElement('div');
+  text.style.flex = '1';
+  text.innerHTML = '<div style="font-weight:600;">הוסף למסך הבית</div><div style="font-size:11px;opacity:0.7;">גישה מהירה כמו אפליקציה</div>';
+  const icon = document.createElement('span');
+  icon.textContent = '⚖️';
+  icon.style.fontSize = '20px';
+  banner.appendChild(icon);
+  banner.appendChild(text);
+  banner.appendChild(addBtn);
+  banner.appendChild(closeBtn);
   document.body.appendChild(banner);
   setTimeout(() => banner.remove(), 15000);
 }
