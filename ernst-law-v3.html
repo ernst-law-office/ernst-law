@@ -23,7 +23,7 @@
   --border: #e2e8f0; --shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Heebo', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+body { font-family: 'Heebo', Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
 #login-screen {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, #1a1f36 0%, #2d3561 100%);
@@ -59,8 +59,8 @@ body { font-family: 'Heebo', Arial, sans-serif; background: var(--bg); color: va
 .sidebar-user-role { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
 nav { flex: 1; padding: 8px 0; }
 .nav-item {
-  display: flex; align-items: center; gap: 10px; padding: 11px 16px;
-  cursor: pointer; color: rgba(255,255,255,0.7); font-size: 13px;
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  cursor: pointer; color: rgba(255,255,255,0.7); font-size: 14px;
   transition: all 0.15s; border-right: 3px solid transparent;
 }
 .nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
@@ -77,10 +77,10 @@ nav { flex: 1; padding: 8px 0; }
 .section { display: none; padding: 24px; flex: 1; }
 .section.active { display: block; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-.page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+.page-title { font-size: 24px; font-weight: 700; color: var(--text); }
 .page-date { font-size: 12px; color: var(--text3); margin-top: 3px; }
 .card { background: var(--bg2); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 16px; }
-.card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 14px; }
+.card-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
@@ -89,12 +89,12 @@ nav { flex: 1; padding: 8px 0; }
   box-shadow: var(--shadow); text-align: center; cursor: pointer; transition: transform 0.15s;
 }
 .metric-card:hover { transform: translateY(-2px); }
-.metric-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
-.metric-value { font-size: 26px; font-weight: 800; color: var(--text); }
+.metric-label { font-size: 12px; color: var(--text3); margin-bottom: 6px; font-weight: 500; }
+.metric-value { font-size: 28px; font-weight: 800; color: var(--text); }
 .btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px;
   border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg2);
-  cursor: pointer; font-size: 13px; color: var(--text); transition: all 0.15s;
+  cursor: pointer; font-size: 14px; color: var(--text); transition: all 0.15s;
   font-family: inherit;
 }
 .btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
@@ -102,16 +102,16 @@ nav { flex: 1; padding: 8px 0; }
 .btn-primary:hover { background: #2d5bbf; border-color: #2d5bbf; color: white; }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
 .form-group { margin-bottom: 14px; }
-.form-label { font-size: 12px; font-weight: 600; color: var(--text2); display: block; margin-bottom: 5px; }
+.form-label { font-size: 13px; font-weight: 600; color: var(--text2); display: block; margin-bottom: 5px; }
 .form-input {
-  width: 100%; padding: 9px 12px; border-radius: 8px; border: 1.5px solid var(--border);
-  background: var(--bg); font-size: 13px; color: var(--text); font-family: inherit;
+  width: 100%; padding: 10px 13px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--bg); font-size: 14px; color: var(--text); font-family: inherit;
   transition: border-color 0.15s;
 }
 .form-input:focus { outline: none; border-color: var(--blue); background: white; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 textarea.form-input { resize: vertical; min-height: 70px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .badge-red { background: var(--red-dim); color: var(--red); }
 .badge-green { background: var(--green-dim); color: var(--green); }
 .badge-blue { background: var(--blue-dim); color: var(--blue); }
@@ -160,23 +160,48 @@ textarea.form-input { resize: vertical; min-height: 70px; }
 .stage-step.active { background: var(--blue); color: white; }
 .stage-step.done { background: var(--green-dim); color: var(--green); }
 @media (max-width: 768px) {
+  /* Sidebar narrow */
   .sidebar { width: 60px; }
   .sidebar-logo-name, .sidebar-logo-sub, .sidebar-version,
   .sidebar-user-name, .sidebar-user-role, .nav-item span:not(.nav-icon),
   .sidebar-logout span:not(.nav-icon) { display: none; }
   .nav-item { justify-content: center; padding: 14px 0; }
+
+  /* Prevent ALL horizontal overflow */
+  .main { overflow-x: hidden; }
+  .section { padding: 12px; overflow-x: hidden; }
+  * { max-width: 100%; box-sizing: border-box; }
+
+  /* Grids */
   .metrics-grid { grid-template-columns: 1fr 1fr; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
-  .section { padding: 12px; }
   .card { padding: 14px; }
   .page-title { font-size: 18px; }
-  .modal { padding: 20px; border-radius: 12px; }
-  /* Consults two-column → single on mobile */
+
+  /* Page header — stack vertically */
+  .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .page-header > div:last-child { width: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+  .page-header .btn, .page-header button { flex: 1; justify-content: center; min-width: 120px; }
+
+  /* Modal full width */
+  .modal { padding: 16px; border-radius: 12px; width: calc(100vw - 32px) !important; margin: 16px; }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+
+  /* Consults: single column */
   #section-consults > div > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
   #consults-analysis-panel { position: static !important; }
-  /* Calendar weekly grid scroll */
-  #cal-weekly-grid > div { min-width: 560px; }
+
+  /* Leads: compact */
+  #leads-list > div { flex-direction: column; align-items: flex-start; }
+
+  /* Calendar: vertical */
+  #cal-weekly-grid > div { flex-direction: column !important; }
+  #cal-weekly-grid > div > div { min-width: 100% !important; width: 100% !important; }
+
+  /* Tables */
+  table { font-size: 12px; }
+  td, th { padding: 6px 8px !important; }
 }
 @media (max-width: 480px) {
   .sidebar { width: 52px; }
@@ -184,12 +209,25 @@ textarea.form-input { resize: vertical; min-height: 70px; }
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .metric-value { font-size: 22px; }
   .section { padding: 10px; }
-  /* Stack page header on very small screens */
-  .page-header { flex-direction: column; align-items: flex-start; }
-  /* Safe area for iPhone notch */
   #app { padding-bottom: env(safe-area-inset-bottom); }
   .sidebar { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* Floating add button for mobile */
+  .mobile-fab {
+    display: flex !important;
+    position: fixed; bottom: calc(20px + env(safe-area-inset-bottom));
+    left: 50%; transform: translateX(-50%);
+    background: var(--blue); color: white;
+    border: none; border-radius: 28px;
+    padding: 14px 28px; font-size: 15px; font-weight: 700;
+    box-shadow: 0 4px 20px rgba(58,111,216,0.5);
+    cursor: pointer; z-index: 100; gap: 8px;
+    align-items: center; white-space: nowrap;
+    font-family: inherit;
+  }
 }
+/* Hide FAB on desktop */
+.mobile-fab { display: none; }
 </style>
 </head>
 <body>
@@ -360,7 +398,7 @@ textarea.form-input { resize: vertical; min-height: 70px; }
         </div>
         <button class="btn btn-primary" onclick="openModal('new-consult')">+ שיחת ייעוץ</button>
       </div>
-      <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:flex-start;">
+      <div style="display:grid;grid-template-columns:340px minmax(0,600px);gap:20px;align-items:flex-start;max-width:980px;">
         <div id="consults-list" style="min-width:0;"></div>
         <div id="consults-analysis-panel" style="position:sticky;top:16px;background:white;border-radius:12px;box-shadow:var(--shadow);padding:20px;min-height:200px;">
           <div style="text-align:center;padding:40px 20px;color:var(--text3);">
@@ -371,6 +409,7 @@ textarea.form-input { resize: vertical; min-height: 70px; }
         </div>
       </div>
     </div>
+    <button class="mobile-fab" onclick="openModal('new-consult')">➕ שיחת ייעוץ חדשה</button>
 
     <div id="section-calendar" class="section" style="padding:16px;">
       <div class="page-header" style="margin-bottom:12px;">
@@ -797,30 +836,66 @@ async function saveLeadNote(id) {
 }
 async function importExcel(input) {
   if(!input.files[0]) return;
-  showNotif('מייבא...');
-  const script=document.createElement('script');
-  script.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-  script.onload=async()=>{
-    const reader=new FileReader();
-    reader.onload=async(e)=>{
-      const wb=XLSX.read(e.target.result,{type:'binary'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
-      let added=0,updated=0;
-      for(const r of rows){
-        const name=((r['First name']||r['שם']||'')+' '+(r['Last name']||'')).trim();
-        if(!name) continue;
-        const phone=String(r['Phone']||r['טלפון']||'');
-        const existing=cache.leads.find(l=>(phone&&l.phone===phone)||(r['Email']&&l.email===r['Email']));
-        const leadData={name,phone,email:r['Email']||r['מייל']||'',source:r['Leadsource']||r['Tags']||r['מקור']||'KESHER',status:r['Contact Status']||r['סטטוס']||'עדיין לא נוצר קשר',notes:[r['מה המטרה?'],r['מדוע?'],r['האם קיים תכנון?']].filter(Boolean).join(' | '),updated_at:new Date()};
-        if(existing){if(['עדיין לא נוצר קשר','אין מענה',''].includes(existing.status)){await db.from('leads').update(leadData).eq('id',existing.id);updated++;}}
-        else{await db.from('leads').insert({...leadData,created_at:new Date()});added++;}
-      }
-      await loadLeads(); showNotif(`✅ יובאו ${added} חדשים, ${updated} עודכנו`);
-    };
-    reader.readAsBinaryString(input.files[0]);
+  showNotif('⏳ טוען קובץ...');
+
+  const loadXLSX = () => new Promise(resolve => {
+    if(window.XLSX) return resolve();
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=resolve;
+    document.head.appendChild(s);
+  });
+
+  await loadXLSX();
+
+  const reader = new FileReader();
+  reader.onload = async(e) => {
+    const wb = XLSX.read(e.target.result, {type:'binary'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+
+    let added=0, skipped=0, total=rows.length;
+
+    for(const r of rows) {
+      const name = ((r['First name']||r['שם']||'')+' '+(r['Last name']||'')).trim();
+      if(!name) { skipped++; continue; }
+
+      const phone = String(r['Phone']||r['טלפון']||'').replace(/\D/g,'');
+      const email = String(r['Email']||r['מייל']||'').toLowerCase().trim();
+
+      // Check for existing lead by phone OR email — skip if found
+      const exists = cache.leads.find(l => {
+        const lphone = String(l.phone||'').replace(/\D/g,'');
+        const lemail = String(l.email||'').toLowerCase().trim();
+        return (phone && lphone && phone===lphone) || (email && lemail && email===lemail);
+      });
+
+      if(exists) { skipped++; continue; }
+
+      // New lead only
+      const notes = [r['מה המטרה?'],r['מדוע?'],r['האם קיים תכנון?']].filter(Boolean).join(' | ');
+      await db.from('leads').insert({
+        name,
+        phone: r['Phone']||r['טלפון']||'',
+        email: r['Email']||r['מייל']||'',
+        source: r['Leadsource']||r['Tags']||r['מקור']||'רב מסר',
+        status: 'עדיין לא נוצר קשר',
+        free_note: notes,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      added++;
+    }
+
+    await loadLeads();
+
+    if(added===0) {
+      showNotif(`ℹ️ אין לידים חדשים — כל ${skipped} הרשומות כבר קיימות`);
+    } else {
+      showNotif(`✅ נוספו ${added} לידים חדשים · ${skipped} כבר קיימים · סה"כ בקובץ: ${total}`);
+    }
   };
-  document.head.appendChild(script);
+  reader.readAsBinaryString(input.files[0]);
 }
 
 // ============================================================
@@ -1007,31 +1082,32 @@ function renderAnalysisPanel(consultId) {
 
   const sectionsHtml = hasAny ? sections.filter(s=>c[s.key]).map(s=>{
     const isEmail = EMAIL_KEYS.includes(s.key);
-    return `<div style="margin-bottom:16px;">
-      <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
-        <span>${s.title}</span>
-        <div style="display:flex;gap:4px;">
-          ${isEmail?`<button onclick="editEmail(${c.id},'${s.key}','${s.title}')" style="background:var(--amber-dim);border:1px solid var(--amber);border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;color:var(--amber);">✏️ ערוך</button>`:''}
-          <button onclick="copyText(\`${(c[s.key]||'').replace(/`/g,"'")}\`)" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;">📋</button>
+    const safeText = (c[s.key]||'').replace(/`/g,"'");
+    return `<div style="margin-bottom:20px;border-radius:10px;border:1.5px solid var(--border);overflow:hidden;">
+      <div style="background:var(--bg3);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1.5px solid var(--border);">
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">${s.title}</span>
+        <div style="display:flex;gap:6px;">
+          ${isEmail?`<button onclick="editEmail(${c.id},'${s.key}','${s.title}')" style="background:var(--amber-dim);border:1px solid var(--amber);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;color:var(--amber);font-family:inherit;">✏️ ערוך</button>`:''}
+          <button onclick="copyText(\`${safeText}\`)" style="background:white;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">📋 העתק</button>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.7;white-space:pre-wrap;background:var(--bg3);padding:10px;border-radius:8px;max-height:120px;overflow-y:auto;">${c[s.key]}</div>
+      <div style="font-size:14px;color:var(--text);line-height:1.8;white-space:pre-wrap;padding:14px;background:white;max-height:220px;overflow-y:auto;">${c[s.key]}</div>
     </div>`;
-  }).join('') : `<div style="text-align:center;padding:30px;color:var(--text3);">
-    <div style="font-size:24px;margin-bottom:8px;">🤖</div>
-    <div style="font-size:13px;margin-bottom:12px;">אין ניתוח עדיין</div>
+  }).join('') : `<div style="text-align:center;padding:40px;color:var(--text3);">
+    <div style="font-size:32px;margin-bottom:8px;">🤖</div>
+    <div style="font-size:14px;margin-bottom:12px;">אין ניתוח עדיין</div>
     <button class="btn btn-primary" onclick="analyzeConsult(${c.id})">🤖 נתח עכשיו</button>
   </div>`;
 
   panel.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--border);">
       <div>
-        <div style="font-size:15px;font-weight:700;">${c.client_name}</div>
-        <div style="font-size:12px;color:var(--text3);">${c.case_type||''} · ${c.next_step||''}</div>
+        <div style="font-size:17px;font-weight:700;">${c.client_name}</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:2px;">${c.case_type||''} · ${c.next_step||''}</div>
       </div>
       <button class="btn btn-sm" onclick="analyzeConsult(${c.id})" style="color:var(--purple);border-color:var(--purple);">🤖 נתח מחדש</button>
     </div>
-    <div style="max-height:calc(100vh - 200px);overflow-y:auto;">${sectionsHtml}</div>`;
+    <div style="max-height:calc(100vh - 180px);overflow-y:auto;padding-left:2px;">${sectionsHtml}</div>`;
 }
 
 async function editEmail(consultId, fieldKey, title) {
@@ -1785,6 +1861,7 @@ function renderCalendar() {
   </div>`;
 
   // Weekly grid columns (Sun-Sat)
+  const isMobile = window.innerWidth < 768;
   let colsHtml=weekDates.map((date,i)=>{
     const isToday=date===today;
     const d=new Date(date+'T12:00:00');
@@ -1795,6 +1872,7 @@ function renderCalendar() {
     const headerBg=isToday?'var(--blue)':'var(--bg3)';
     const headerColor=isToday?'white':'var(--text2)';
 
+    if(isMobile && !dayEvents.length) return '';
     const eventsHtml=dayEvents.length?dayEvents.map(e=>{
       const isConsult=e.type==='consult';
       const bg=isConsult?'var(--blue-dim)':'var(--bg2)';
@@ -1807,7 +1885,7 @@ function renderCalendar() {
       </div>`;
     }).join(''):`<div style="text-align:center;padding:16px 0;color:var(--text3);font-size:11px;">אין פגישות</div>`;
 
-    return `<div style="flex:1;min-width:0;">
+    return `<div style="flex:1;min-width:0;${isMobile&&dayEvents.length?'border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:8px;':''}">
       <div style="background:${headerBg};color:${headerColor};border-radius:8px 8px 0 0;padding:8px 6px;text-align:center;margin-bottom:4px;">
         <div style="font-size:11px;font-weight:600;">${DAY_FULL[i]}</div>
         <div style="font-size:18px;font-weight:800;">${dateNum}</div>
