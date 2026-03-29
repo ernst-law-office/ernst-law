@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
         method: 'POST',
         headers: {'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 1500,
+          model: 'claude-sonnet-4-6', max_tokens: 2000,
           messages: [{ role: 'user', content: 'ערוך את הטקסט לפי ההוראה.\nלקוח: ' + clientName + '\nטקסט: ' + currentText + '\nהוראה: ' + instruction + '\nהחזר JSON בלבד: {"edited_text":"..."}' }],
         }),
       });
@@ -65,7 +65,7 @@ STRATEGY_ENGINE:
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {'Content-Type':'application/json','x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},
-      body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:3000,system:sys,messages:[{role:'user',content:msg}]}),
+      body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4000,system:sys,messages:[{role:'user',content:msg}]}),
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error?.message||'API error '+r.status);
