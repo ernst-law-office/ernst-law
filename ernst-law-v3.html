@@ -663,57 +663,318 @@ function renderCases() {
   }).join(''):`<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)">${showClosed?'אין תיקים סגורים':'אין תיקים פעילים'}</td></tr>`;
 }
 
-function openCaseDetail(id) {
+function openCaseDetail(id, activeTab) {
   const c=cache.cases.find(x=>x.id===id);
   if(!c) return;
-  const pct=Math.round((c.stage||1)/7*100);
+  const tab = activeTab || 'stages';
   const caseTasks=cache.tasks.filter(t=>t.case_id===id&&!t.done);
-  document.getElementById('modal-content').innerHTML=`
-    <div class="modal-title">📁 ${c.name}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-      <span class="badge badge-blue">${c.type||''}</span>
-      <span class="badge ${c.complexity==='גבוהה'||c.complexity==='גבוהה מאוד'?'badge-red':'badge-blue'}">${c.complexity||''}</span>
-      <span class="badge badge-green">${STAGES[(c.stage||1)-1]}</span>
-    </div>
-    <div class="stage-steps" style="margin-bottom:16px;">
-      ${STAGES.map((s,i)=>`<div class="stage-step ${(c.stage||1)>i+1?'done':(c.stage||1)===i+1?'active':''}" onclick="updateCaseStage(${id},${i+1})">${s}</div>`).join('')}
-    </div>
-    <div class="progress-bar" style="margin-bottom:16px;"><div class="progress-fill" style="width:${pct}%;background:${STAGE_COLORS[c.stage||1]}"></div></div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">
-      ${c.phone?`📞 ${c.phone} &nbsp;`:''}${c.email?`✉️ ${c.email}`:''}${c.fee?`<br>שכ"ט: ₪${c.fee.toLocaleString()}`:''}
-    </div>
-    <div style="margin-bottom:12px;"><div style="font-weight:600;font-size:13px;margin-bottom:8px;">משימות פתוחות (${caseTasks.length})</div>
-      ${caseTasks.map(t=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
-        <span>${t.title}</span><button class="btn btn-sm" style="color:var(--green);border-color:var(--green);font-size:11px;" onclick="completeTask(${t.id})">✓</button>
-      </div>`).join()||'<div style="color:var(--text3);font-size:12px;">אין משימות פתוחות</div>'}
-    </div>
-    ${c.notes?`<div style="background:var(--bg3);border-radius:8px;padding:10px;font-size:12px;color:var(--text2);margin-bottom:14px;">${c.notes}</div>`:''}
-    ${(()=>{
-      const lc=cache.consults.find(x=>x.id===c.consult_id);
-      if(!lc) return '';
-      return `<div style="background:var(--blue-dim);border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #c8d8fb;">
-        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px;">🎙️ שיחת ייעוץ מקורית — ${lc.client_name}</div>
-        ${lc.ai_summary?`<div style="font-size:12px;color:var(--text2);margin-bottom:6px;line-height:1.6;">${lc.ai_summary}</div>`:''}
-        ${lc.diagnostic_report?`<div style="font-size:12px;color:var(--text2);white-space:pre-wrap;max-height:100px;overflow-y:auto;background:white;padding:8px;border-radius:6px;margin-bottom:6px;">${lc.diagnostic_report.substring(0,400)}...</div>`:''}
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${lc.fee_proposal?`<button class="btn btn-sm" style="font-size:11px;color:var(--green);border-color:var(--green);" onclick="closeModal();setTimeout(()=>showAnalysisSection(${lc.id},'fee_proposal','💰 הצעת שכ\"ט'),100)">💰 שכ"ט</button>`:''}
-          ${lc.questionnaire?`<button class="btn btn-sm" style="font-size:11px;" onclick="closeModal();setTimeout(()=>showAnalysisSection(${lc.id},'questionnaire','📝 שאלון'),100)">📝 שאלון</button>`:''}
-          ${lc.strategic_alternatives?`<button class="btn btn-sm" style="font-size:11px;" onclick="closeModal();setTimeout(()=>showAnalysisSection(${lc.id},'strategic_alternatives','♟️ חלופות'),100)">♟️ חלופות</button>`:''}
-        </div>
+  const pct=Math.round((c.stage||1)/8*100);
+
+  const STAGE_DETAILS = [
+    {icon:'🎙️', name:'שיחת ייעוץ ראשונית', desc:'שיחה ראשונית עם הלקוח, הבנת הצרכים'},
+    {icon:'📋', name:'קבלת שאלון ומסמכים', desc:'הלקוח מחזיר שאלון ומסמכים'},
+    {icon:'✍️', name:'חתימת הסכם שכ"ט', desc:'חתימה על הסכם ותשלום מקדמה'},
+    {icon:'🔍', name:'אבחון וניתוח', desc:'ניתוח מלא, חלופות, המלצות'},
+    {icon:'📊', name:'הצגת מתווה ללקוח', desc:'פגישת אבחון והצגת חלופות'},
+    {icon:'📄', name:'הכנת מסמכים משפטיים', desc:'ניסוח צוואות, הסכמים, יפו"כ'},
+    {icon:'⚙️', name:'יישום ורישום', desc:'יישום, רישום, העברות'},
+    {icon:'✅', name:'סגירת תיק', desc:'סיכום, ארכיון, תודה ללקוח'},
+  ];
+
+  const DOCS = ['צוואה','יפוי כוח מתמשך','יפוי כוח','הסכם מתנה','הסכם הלוואה','הסכם משפחתי','שטר מכר','נסח טאבו','אישורים לטאבו','שאלון לקוח','הצעת שכ"ט חתומה','מסמכים אחרים'];
+  const caseDocs = c.documents ? JSON.parse(c.documents) : [];
+
+  const tabBtn = (key, label) => `<button onclick="openCaseDetail(${id},'${key}')" style="padding:8px 14px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:${tab===key?'700':'400'};background:${tab===key?'var(--blue)':'var(--bg3)'};color:${tab===key?'white':'var(--text2)'};font-family:inherit;">${label}</button>`;
+
+  // Linked consult
+  const lc = cache.consults.find(x=>x.id===c.consult_id);
+
+  let tabContent = '';
+
+  if(tab==='stages') {
+    tabContent = `
+      <div style="margin-bottom:16px;">
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:var(--blue)"></div></div>
+        <div style="font-size:11px;color:var(--text3);text-align:left;margin-top:4px;">${pct}% הושלם</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${STAGE_DETAILS.map((s,i)=>{
+          const stageNum=i+1;
+          const isDone=(c.stage||1)>stageNum;
+          const isActive=(c.stage||1)===stageNum;
+          const stageNote = c['stage_note_'+stageNum]||'';
+          return `<div style="border:2px solid ${isActive?'var(--blue)':isDone?'var(--green)':'var(--border)'};border-radius:10px;padding:12px 14px;background:${isActive?'var(--blue-dim)':isDone?'var(--green-dim)':'white'};">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${isActive||isDone?'8px':'0'};">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:18px;">${isDone?'✅':isActive?s.icon:'⬜'}</span>
+                <div>
+                  <div style="font-size:13px;font-weight:700;color:${isActive?'var(--blue)':isDone?'var(--green)':'var(--text3)'};">${s.name}</div>
+                  <div style="font-size:11px;color:var(--text3);">${s.desc}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:4px;">
+                ${!isDone&&!isActive?`<button onclick="updateCaseStage(${id},${stageNum});closeModal()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">התחל</button>`:''}
+                ${isActive?`<button onclick="updateCaseStage(${id},${stageNum+1});closeModal()" style="background:var(--green);color:white;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✓ סיים שלב</button>`:''}
+              </div>
+            </div>
+            ${isActive||isDone?`<textarea placeholder="הערות לשלב זה..." style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;resize:vertical;min-height:50px;" id="stage-note-${stageNum}">${stageNote}</textarea>
+            <button onclick="saveStagenote(${id},${stageNum})" style="margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;">💾 שמור הערה</button>`:''}
+          </div>`;
+        }).join('')}
       </div>`;
-    })()}
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="closeModal();openModal('new-task',${id})">+ משימה</button>
+  }
+
+  if(tab==='analysis') {
+    const analysisFields = [
+      {key:'diagnostic_report', title:'📊 דוח אבחון'},
+      {key:'professional_analysis', title:'🔍 ניתוח מקצועי'},
+      {key:'strategic_alternatives', title:'♟️ חלופות אסטרטגיות'},
+      {key:'fee_proposal', title:'💰 הצעת שכ"ט'},
+      {key:'tasks_client', title:'✅ משימות ללקוח'},
+      {key:'tasks_lawyer', title:'⚖️ משימות לעו"ד'},
+      {key:'asset_map', title:'🏠 מפת נכסים'},
+    ];
+    const hasAnalysis = analysisFields.some(f=>c[f.key]);
+    tabContent = `
+      <div style="margin-bottom:12px;">
+        <div class="form-group">
+          <label class="form-label">📋 תשובות שאלון מהלקוח</label>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <button class="btn btn-sm" onclick="document.getElementById('q-file-${id}').click()" style="color:var(--blue);border-color:var(--blue);">📎 העלה קובץ Word/Excel</button>
+            <input type="file" id="q-file-${id}" accept=".docx,.xlsx,.xls,.txt" style="display:none" onchange="extractFileToQuestionnaire(this,${id})">
+            <span id="q-file-status-${id}" style="font-size:12px;color:var(--text3);line-height:32px;"></span>
+          </div>
+          <textarea class="form-input" id="case-questionnaire" style="min-height:120px;" placeholder="הדבק כאן את תשובות השאלון שקיבלת מהלקוח, או העלה קובץ...">${c.questionnaire_data||''}</textarea>
+        </div>
+        <button class="btn btn-primary" onclick="saveCaseQuestionnaire(${id})">💾 שמור שאלון</button>
+        ${userRole==='lawyer'?`<button class="btn" onclick="analyzeCaseFull(${id})" style="color:var(--purple);border-color:var(--purple);margin-right:8px;">🤖 נתח תיק מלא</button>`:''}
+      </div>
+      <div style="border-top:2px solid var(--border);padding-top:12px;margin-top:12px;">
+        ${hasAnalysis ? analysisFields.filter(f=>c[f.key]).map(f=>`
+          <div style="margin-bottom:16px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;">
+            <div style="background:var(--bg3);padding:9px 13px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:13px;font-weight:700;color:var(--blue);">${f.title}</span>
+              <button onclick="navigator.clipboard.writeText(\`${(c[f.key]||'').replace(/`/g,"'")}\`);showNotif('✅ הועתק')" style="background:white;border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;">📋 העתק</button>
+            </div>
+            <div style="font-size:13px;color:var(--text);line-height:1.8;white-space:pre-wrap;padding:12px;max-height:200px;overflow-y:auto;">${c[f.key]}</div>
+          </div>`).join('') : `<div style="text-align:center;padding:30px;color:var(--text3);">
+          <div style="font-size:28px;margin-bottom:8px;">🤖</div>
+          <div style="margin-bottom:12px;">הדבק שאלון ולחץ "נתח תיק מלא"</div>
+        </div>`}
+      </div>`;
+  }
+
+  if(tab==='docs') {
+    tabContent = `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;">סמן מסמכים שנמצאים בתיק:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          ${DOCS.map(doc=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid ${caseDocs.includes(doc)?'var(--green)':'var(--border)'};border-radius:8px;cursor:pointer;background:${caseDocs.includes(doc)?'var(--green-dim)':'white'};">
+            <input type="checkbox" ${caseDocs.includes(doc)?'checked':''} onchange="toggleCaseDoc(${id},'${doc}',this.checked)" style="width:16px;height:16px;">
+            <span style="font-size:13px;">${doc}</span>
+          </label>`).join('')}
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:12px;font-size:13px;">
+        <div style="font-weight:700;margin-bottom:6px;">מסמכים שהתקבלו: ${caseDocs.length}</div>
+        ${caseDocs.length ? caseDocs.map(d=>`<div>✅ ${d}</div>`).join('') : '<div style="color:var(--text3);">אין מסמכים עדיין</div>'}
+      </div>`;
+  }
+
+  if(tab==='tasks') {
+    tabContent = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;">משימות פתוחות (${caseTasks.length})</div>
+        <button class="btn btn-sm btn-primary" onclick="closeModal();openModal('new-task',${id})">+ משימה</button>
+      </div>
+      ${caseTasks.length ? caseTasks.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;">${t.title}</span>
+        <button class="btn btn-sm" style="color:var(--green);border-color:var(--green);" onclick="completeTask(${t.id})">✓</button>
+      </div>`).join('') : '<div style="color:var(--text3);font-size:13px;padding:12px 0;">אין משימות פתוחות</div>'}
+      ${lc?`<div style="margin-top:12px;background:var(--blue-dim);border-radius:8px;padding:10px;font-size:12px;">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;">🎙️ מתוך שיחת הייעוץ:</div>
+        ${lc.ai_summary?`<div>${lc.ai_summary}</div>`:''}
+      </div>`:''}`;
+  }
+
+  document.getElementById('modal-content').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+      <div>
+        <div class="modal-title" style="margin-bottom:6px;">📁 ${c.name}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <span class="badge badge-blue">${c.type||''}</span>
+          <span class="badge badge-green">${STAGE_DETAILS[(c.stage||1)-1]?.name||''}</span>
+          ${c.fee?`<span class="badge badge-gray">₪${Number(c.fee).toLocaleString()}</span>`:''}
+        </div>
+      </div>
+      <button class="btn btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+      ${tabBtn('stages','📋 שלבים')}
+      ${tabBtn('analysis','🤖 ניתוח שאלון')}
+      ${tabBtn('docs','📄 מסמכים')}
+      ${tabBtn('tasks','✅ משימות')}
+    </div>
+    <div style="max-height:60vh;overflow-y:auto;">${tabContent}</div>
+    <div class="modal-actions" style="margin-top:12px;">
       ${userRole==='lawyer'?`<button class="btn" style="color:var(--red);border-color:var(--red)" onclick="closeCase(${id})">${c.closed?'פתח מחדש':'סגור תיק'}</button>`:''}
       ${userRole==='lawyer'&&c.closed?`<button class="btn" style="color:var(--text3);border-color:var(--text3)" onclick="archiveCase(${id})">🗃️ ארכיון</button>`:''}
-      <button class="btn" onclick="closeModal()">סגור</button>
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
 
+
 async function updateCaseStage(id,stage) {
   await db.from('cases').update({stage,updated_at:new Date()}).eq('id',id);
-  showNotif('שלב עודכן'); await loadCases();
+  showNotif('✅ שלב עודכן'); await loadCases();
+}
+
+async function saveStagenote(caseId, stageNum) {
+  const val = document.getElementById('stage-note-'+stageNum)?.value||'';
+  const update = {};
+  update['stage_note_'+stageNum] = val;
+  update.updated_at = new Date();
+  await db.from('cases').update(update).eq('id',caseId);
+  showNotif('✅ הערה נשמרה');
+  await loadCases();
+}
+
+async function extractFileToQuestionnaire(input, caseId) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('q-file-status-'+caseId);
+  if (status) status.textContent = '⏳ קורא קובץ...';
+
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'txt') {
+    const text = await file.text();
+    const ta = document.getElementById('case-questionnaire');
+    if (ta) ta.value = text;
+    if (status) status.textContent = '✅ ' + file.name;
+    return;
+  }
+
+  if (ext === 'docx') {
+    // Load mammoth for Word files
+    if (!window.mammoth) {
+      await new Promise(resolve => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js';
+        s.onload = resolve;
+        document.head.appendChild(s);
+      });
+    }
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await window.mammoth.extractRawValue({arrayBuffer});
+    const ta = document.getElementById('case-questionnaire');
+    if (ta) ta.value = result.value;
+    if (status) status.textContent = '✅ ' + file.name;
+    return;
+  }
+
+  if (ext === 'xlsx' || ext === 'xls') {
+    // Load XLSX for Excel files
+    if (!window.XLSX) {
+      await new Promise(resolve => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        s.onload = resolve;
+        document.head.appendChild(s);
+      });
+    }
+    const arrayBuffer = await file.arrayBuffer();
+    const wb = XLSX.read(arrayBuffer, {type:'array'});
+    let text = '';
+    wb.SheetNames.forEach(name => {
+      const ws = wb.Sheets[name];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      text += rows.map(row => row.filter(Boolean).join('	')).filter(Boolean).join('
+') + '
+
+';
+    });
+    const ta = document.getElementById('case-questionnaire');
+    if (ta) ta.value = text.trim();
+    if (status) status.textContent = '✅ ' + file.name;
+    return;
+  }
+
+  if (status) status.textContent = '❌ פורמט לא נתמך';
+}
+
+async function saveCaseQuestionnaire(caseId) {
+  const val = document.getElementById('case-questionnaire')?.value||'';
+  await db.from('cases').update({questionnaire_data:val, updated_at:new Date()}).eq('id',caseId);
+  showNotif('✅ שאלון נשמר');
+  await loadCases();
+}
+
+async function toggleCaseDoc(caseId, docName, checked) {
+  const c = cache.cases.find(x=>x.id===caseId);
+  if(!c) return;
+  let docs = c.documents ? JSON.parse(c.documents) : [];
+  if(checked && !docs.includes(docName)) docs.push(docName);
+  if(!checked) docs = docs.filter(d=>d!==docName);
+  await db.from('cases').update({documents:JSON.stringify(docs), updated_at:new Date()}).eq('id',caseId);
+  cache.cases = cache.cases.map(x=>x.id===caseId?{...x,documents:JSON.stringify(docs)}:x);
+  showNotif(checked?'✅ מסמך נוסף':'מסמך הוסר');
+}
+
+async function analyzeCaseFull(caseId) {
+  const cs = cache.cases.find(x=>x.id===caseId);
+  if(!cs) return;
+  // Get linked consult for base info
+  const consult = cache.consults.find(x=>x.id===cs.consult_id);
+  
+  // Show loading
+  const loadDiv = document.createElement('div');
+  loadDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  loadDiv.innerHTML = '<div style="background:white;border-radius:16px;padding:32px 40px;text-align:center;max-width:340px;"><div style="font-size:36px;margin-bottom:12px;">🤖</div><div style="font-size:16px;font-weight:700;margin-bottom:8px;">מנתח את התיק</div><div style="font-size:13px;color:#8896a5;">מכין ניתוח מלא, חלופות והמלצות...<br>כ-15-20 שניות</div></div>';
+  document.body.appendChild(loadDiv);
+  closeModal();
+
+  try {
+    const caseData = {
+      client_name: cs.name,
+      case_type: cs.type,
+      fee_potential: cs.fee,
+      notes: cs.notes + (consult ? '
+
+סיכום שיחה:
+' + (consult.notes||consult.ai_summary||'') : ''),
+      questionnaire_data: cs.questionnaire_data || '',
+    };
+
+    const r1 = await fetch('/api/analyze-case', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({caseData}),
+    });
+    if(!r1.ok) throw new Error('שגיאה: '+r1.status);
+    const result = await r1.json();
+
+    // Save to case
+    await db.from('cases').update({
+      diagnostic_report: result.diagnostic_report||null,
+      professional_analysis: result.professional_analysis||null,
+      strategic_alternatives: result.strategic_alternatives||null,
+      tasks_client: result.tasks_client||null,
+      tasks_lawyer: result.tasks_lawyer||null,
+      questionnaire: result.questionnaire||null,
+      asset_map: result.asset_map||null,
+      fee_proposal: result.fee_proposal||null,
+      updated_at: new Date(),
+    }).eq('id', caseId);
+
+    document.body.removeChild(loadDiv);
+    showNotif('✅ ניתוח מלא הושלם!');
+    await loadCases();
+    openCaseDetail(caseId);
+  } catch(e) {
+    document.body.removeChild(loadDiv);
+    showNotif('❌ שגיאה: '+e.message);
+  }
 }
 
 async function closeCase(id) {
@@ -1062,19 +1323,13 @@ function renderAnalysisPanel(consultId) {
   if(!panel) return;
 
   const EMAIL_KEYS = ['ai_email_draft','ai_call_reminder'];
+  // שיחת ייעוץ: רק סיכום ומייל ללקוח
   const sections = [
-    {key:'ai_summary', title:'📝 סיכום', noEdit:true},
+    {key:'ai_summary', title:'📝 תקציר מנהלים', noEdit:true},
     {key:'ai_recommendation', title:'💡 המלצה', noEdit:true},
-    {key:'client_summary', title:'👤 סיכום ללקוח'},
-    {key:'diagnostic_report', title:'📊 דוח אבחון'},
-    {key:'case_classification', title:'🗂️ סיווג תיק'},
-    {key:'strategic_alternatives', title:'♟️ חלופות אסטרטגיות'},
-    {key:'fee_proposal', title:'💰 הצעת שכ"ט'},
-    {key:'tasks_client', title:'✅ משימות ללקוח'},
-    {key:'tasks_lawyer', title:'⚖️ משימות לעו"ד'},
-    {key:'questionnaire', title:'📝 שאלון ללקוח'},
-    {key:'asset_map', title:'🏠 מפת נכסים'},
-    {key:'ai_email_draft', title:'📧 מייל סיכום'},
+    {key:'case_classification', title:'🗂️ סיווג תיק', noEdit:true},
+    {key:'client_summary', title:'👤 סיכום ידידותי ללקוח'},
+    {key:'ai_email_draft', title:'📧 מייל סיכום ללקוח'},
     {key:'ai_call_reminder', title:'🔔 מייל פולואפ'},
   ];
 
@@ -1189,8 +1444,8 @@ async function analyzeConsult(consultId) {
     loadDiv.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:999;display:flex;align-items:center;justify-content:center;';
     loadDiv.innerHTML=`<div style="background:white;border-radius:16px;padding:32px 40px;text-align:center;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
       <div style="font-size:40px;margin-bottom:12px;">🤖</div>
-      <div style="font-size:16px;font-weight:700;color:#1a1f36;margin-bottom:8px;">Claude מנתח את השיחה</div>
-      <div style="font-size:13px;color:#8896a5;margin-bottom:20px;">מפעיל את כל מודולי הניתוח...<br>זה לוקח כ-15-30 שניות</div>
+      <div style="font-size:16px;font-weight:700;color:#1a1f36;margin-bottom:8px;">מסכם את השיחה</div>
+      <div style="font-size:13px;color:#8896a5;margin-bottom:20px;">מכין תקציר מנהלים ומייל ללקוח...<br>זה לוקח כ-10-15 שניות</div>
       <div style="display:flex;gap:6px;justify-content:center;margin-bottom:16px;">
         <div style="width:10px;height:10px;border-radius:50%;background:#3a6fd8;animation:pulse 1.2s infinite 0s;"></div>
         <div style="width:10px;height:10px;border-radius:50%;background:#3a6fd8;animation:pulse 1.2s infinite 0.2s;"></div>
@@ -1211,7 +1466,7 @@ async function analyzeConsult(consultId) {
     }
 
     // Animated steps
-    const steps=['⏳ מאתחל ניתוח...','🔍 מסווג את סוג התיק...','📊 מנתח מורכבות משפטית...','💰 מעריך שכר טרחה...','📝 מכין דוח אבחון...','📧 כותב מיילים ללקוח...','🏠 ממפה נכסים...','✅ מסיים ניתוח...'];
+    const steps=['⏳ מנתח את השיחה...','📋 מסכם עיקרי הדברים...','📧 מכין מייל ללקוח...','✅ כמעט מוכן...'];
     let step=0;
     const stepEl=document.getElementById('loading-steps-'+consultId);
     const interval=setInterval(()=>{
@@ -1257,7 +1512,7 @@ async function analyzeConsult(consultId) {
     if(stepEl) stepEl.textContent='⚡ שלב 1: סיכום, מיילים וסיווג...';
     const r1=await fetch('/api/analyze',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({consultData:c, phase:1}),
+      body:JSON.stringify({consultData:c}),
     });
     if(!r1.ok) throw new Error('שגיאת שרת '+r1.status);
     const result1=await r1.json();
@@ -1265,17 +1520,8 @@ async function analyzeConsult(consultId) {
     if(stepEl) stepEl.textContent='✅ שלב 1 הושלם! ממשיך לניתוח מעמיק...';
     showNotif('✅ שלב 1 הושלם — ממשיך...');
 
-    // Phase 2 — deep analysis
-    if(stepEl) stepEl.textContent='🔍 שלב 2: דוח אבחון, הצעת שכ"ט, שאלון...';
-    const r2=await fetch('/api/analyze',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({consultData:c, phase:2}),
-    });
-    if(!r2.ok) throw new Error('שגיאת שרת שלב 2: '+r2.status);
-    const result2=await r2.json();
-    await saveResult(result2);
     removeLoading();
-    showNotif('✅ ניתוח מלא הושלם!');
+    showNotif('✅ סיכום שיחה הושלם!');
     await loadConsults();
   } catch(e) {
     removeLoading();
