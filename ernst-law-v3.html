@@ -498,7 +498,7 @@ const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const APP_VERSION = 'v3.7 · 22.03.26';
-const STAGES = ['שיחת ייעוץ','קבלת שאלון','הסכם שכ"ט','אבחון וניתוח','הצגת מתווה','הכנת מסמכים','יישום ורישום','סגירת תיק'];
+const STAGES = ['כללי','איסוף נתונים','הצעה והסכם','הכנת טיוטות','חתימה','מעקב חוץ','סיום טיפול'];
 const STAGE_COLORS = {1:'#e85555',2:'#f5a623',3:'#f5a623',4:'#4a7ff5',5:'#4a7ff5',6:'#1a9e6a',7:'#1a9e6a'};
 const ASSIGN_LABELS = { lawyer:'עו"ד', secretary:'מזכירה', intern:'מתמחה', client:'לקוח' };
 const PRIORITY_COLORS = { high:'#e85555', med:'#f5a623', low:'#4a7ff5' };
@@ -664,165 +664,360 @@ function renderCases() {
 }
 
 function openCaseDetail(id, activeTab) {
-  const c=cache.cases.find(x=>x.id===id);
-  if(!c) return;
-  const tab = activeTab || 'stages';
-  const caseTasks=cache.tasks.filter(t=>t.case_id===id&&!t.done);
-  const pct=Math.round((c.stage||1)/8*100);
+  const c = cache.cases.find(x=>x.id===id);
+  if (!c) return;
+  const tab = activeTab || 'general';
 
-  const STAGE_DETAILS = [
-    {icon:'🎙️', name:'שיחת ייעוץ ראשונית', desc:'שיחה ראשונית עם הלקוח, הבנת הצרכים'},
-    {icon:'📋', name:'קבלת שאלון ומסמכים', desc:'הלקוח מחזיר שאלון ומסמכים'},
-    {icon:'✍️', name:'חתימת הסכם שכ"ט', desc:'חתימה על הסכם ותשלום מקדמה'},
-    {icon:'🔍', name:'אבחון וניתוח', desc:'ניתוח מלא, חלופות, המלצות'},
-    {icon:'📊', name:'הצגת מתווה ללקוח', desc:'פגישת אבחון והצגת חלופות'},
-    {icon:'📄', name:'הכנת מסמכים משפטיים', desc:'ניסוח צוואות, הסכמים, יפו"כ'},
-    {icon:'⚙️', name:'יישום ורישום', desc:'יישום, רישום, העברות'},
-    {icon:'✅', name:'סגירת תיק', desc:'סיכום, ארכיון, תודה ללקוח'},
+  const STAGE_INFO = [
+    {key:'general', icon:'📋', name:'כללי', desc:'פרטי תיק, הערות כלליות, קישורים'},
+    {key:'collect', icon:'📂', name:'איסוף נתונים', desc:'שאלון + צ'ק-ליסט מסמכים דינמי'},
+    {key:'proposal', icon:'✍️', name:'הצעה והסכם', desc:'הצעת שכ"ט + הסכם התקשרות'},
+    {key:'drafts', icon:'📝', name:'הכנת טיוטות', desc:'ניסוח מסמכים משפטיים'},
+    {key:'signing', icon:'🖊️', name:'חתימה', desc:'צ'ק-ליסט חתימה על המסמכים'},
+    {key:'external', icon:'🔗', name:'מעקב חוץ', desc:'מעקב תהליכים מול גורמי חוץ'},
+    {key:'close', icon:'✅', name:'סיום טיפול', desc:'סגירת תיק ותיעוד'},
   ];
 
-  const DOCS = ['צוואה','יפוי כוח מתמשך','יפוי כוח','הסכם מתנה','הסכם הלוואה','הסכם משפחתי','שטר מכר','נסח טאבו','אישורים לטאבו','שאלון לקוח','הצעת שכ"ט חתומה','מסמכים אחרים'];
-  const caseDocs = c.documents ? JSON.parse(c.documents) : [];
+  const currentStageIdx = STAGE_INFO.findIndex(s=>s.key===tab);
+  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const linkedConsult = cache.consults.find(x=>x.id===c.consult_id);
 
-  const tabBtn = (key, label) => `<button onclick="openCaseDetail(${id},'${key}')" style="padding:8px 14px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:${tab===key?'700':'400'};background:${tab===key?'var(--blue)':'var(--bg3)'};color:${tab===key?'white':'var(--text2)'};font-family:inherit;">${label}</button>`;
+  // Tab buttons
+  const tabs = STAGE_INFO.map(s => {
+    const isActive = tab === s.key;
+    const hasData = stageData[s.key] && (stageData[s.key].notes || stageData[s.key].tasks?.length || stageData[s.key].items?.length);
+    return `<button onclick="openCaseDetail(${id},'${s.key}')" title="${s.desc}"
+      style="padding:7px 12px;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:${isActive?'700':'400'};
+      background:${isActive?'var(--blue)':'var(--bg3)'};color:${isActive?'white':'var(--text2)'};
+      font-family:inherit;white-space:nowrap;position:relative;">
+      ${s.icon} ${s.name}
+      ${hasData?'<span style="position:absolute;top:2px;right:2px;width:6px;height:6px;background:var(--green);border-radius:50%;"></span>':''}
+    </button>`;
+  }).join('');
 
-  // Linked consult
-  const lc = cache.consults.find(x=>x.id===c.consult_id);
+  // Stage content
+  const sd = stageData[tab] || {};
+  const notes = sd.notes || '';
+  const tasks = sd.tasks || [];
+  const checklist = sd.checklist || [];
+  const updates = sd.updates || [];
 
-  let tabContent = '';
+  let stageContent = '';
 
-  if(tab==='stages') {
-    tabContent = `
-      <div style="margin-bottom:16px;">
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:var(--blue)"></div></div>
-        <div style="font-size:11px;color:var(--text3);text-align:left;margin-top:4px;">${pct}% הושלם</div>
+  // ---- GENERAL TAB ----
+  if (tab === 'general') {
+    const lc = linkedConsult;
+    stageContent = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;font-size:13px;">
+        <div><span style="color:var(--text3);">לקוח:</span> <strong>${c.name}</strong></div>
+        <div><span style="color:var(--text3);">סוג:</span> ${c.type||'—'}</div>
+        <div><span style="color:var(--text3);">טלפון:</span> ${c.phone||'—'}</div>
+        <div><span style="color:var(--text3);">מייל:</span> ${c.email||'—'}</div>
+        <div><span style="color:var(--text3);">שכ"ט:</span> ${c.fee?'₪'+Number(c.fee).toLocaleString():'—'}</div>
+        <div><span style="color:var(--text3);">מורכבות:</span> ${c.complexity||'—'}</div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        ${STAGE_DETAILS.map((s,i)=>{
-          const stageNum=i+1;
-          const isDone=(c.stage||1)>stageNum;
-          const isActive=(c.stage||1)===stageNum;
-          const stageNote = c['stage_note_'+stageNum]||'';
-          return `<div style="border:2px solid ${isActive?'var(--blue)':isDone?'var(--green)':'var(--border)'};border-radius:10px;padding:12px 14px;background:${isActive?'var(--blue-dim)':isDone?'var(--green-dim)':'white'};">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${isActive||isDone?'8px':'0'};">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:18px;">${isDone?'✅':isActive?s.icon:'⬜'}</span>
-                <div>
-                  <div style="font-size:13px;font-weight:700;color:${isActive?'var(--blue)':isDone?'var(--green)':'var(--text3)'};">${s.name}</div>
-                  <div style="font-size:11px;color:var(--text3);">${s.desc}</div>
-                </div>
-              </div>
-              <div style="display:flex;gap:4px;">
-                ${!isDone&&!isActive?`<button onclick="updateCaseStage(${id},${stageNum});closeModal()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;">התחל</button>`:''}
-                ${isActive?`<button onclick="updateCaseStage(${id},${stageNum+1});closeModal()" style="background:var(--green);color:white;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit;">✓ סיים שלב</button>`:''}
-              </div>
-            </div>
-            ${isActive||isDone?`<textarea placeholder="הערות לשלב זה..." style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;resize:vertical;min-height:50px;" id="stage-note-${stageNum}">${stageNote}</textarea>
-            <button onclick="saveStagenote(${id},${stageNum})" style="margin-top:4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;">💾 שמור הערה</button>`:''}
-          </div>`;
-        }).join('')}
-      </div>`;
+      ${lc ? `<div style="background:var(--blue-dim);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;">🎙️ שיחת ייעוץ: ${lc.client_name}</div>
+        ${lc.ai_summary?`<div style="color:var(--text2);">${lc.ai_summary}</div>`:''}
+      </div>` : ''}
+      <div class="form-group">
+        <label class="form-label">הערות כלליות</label>
+        <textarea class="form-input" id="stage-notes-${id}" style="min-height:80px;">${notes}</textarea>
+      </div>
+      ${renderStageUpdates(updates)}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="saveStageData(${id},'${tab}')">💾 שמור</button>
+        <button class="btn" onclick="addStageUpdate(${id},'${tab}')">+ הוסף עדכון</button>
+        <button class="btn" onclick="addStageTask(${id},'${tab}')">+ הוסף משימה</button>
+      </div>
+      ${renderStageTasks(tasks, id, tab)}`;
   }
 
-  if(tab==='analysis') {
+  // ---- COLLECT TAB ----
+  if (tab === 'collect') {
+    const defaultDocs = ['נסח טאבו','שומת מס','צוואה קיימת','יפו"כ קיים','דוחות שמאי','מסמך זהות','שאלון לקוח','מסמכים פיננסיים'];
+    const allItems = checklist.length ? checklist : defaultDocs.map(d=>({label:d,done:false}));
+    stageContent = `
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px;">📂 צ'ק-ליסט מסמכים ונתונים</div>
+        <div id="checklist-${id}">
+          ${allItems.map((item,i)=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1.5px solid ${item.done?'var(--green)':'var(--border)'};border-radius:8px;margin-bottom:6px;background:${item.done?'var(--green-dim)':'white'};">
+              <input type="checkbox" ${item.done?'checked':''} onchange="toggleChecklistItem(${id},'${tab}',${i},this.checked)"
+                style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">
+              <span style="flex:1;font-size:13px;${item.done?'text-decoration:line-through;color:var(--text3)':''}">${item.label}</span>
+              ${item.done?'<span style="font-size:11px;color:var(--green);">✅ התקבל</span>':'<span style="font-size:11px;color:var(--text3);">ממתין</span>'}
+            </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <input class="form-input" id="new-checklist-item-${id}" placeholder="הוסף מסמך/נתון..." style="flex:1;">
+          <button class="btn btn-sm btn-primary" onclick="addChecklistItem(${id},'${tab}')">+ הוסף</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px;">📋 שאלון שחזר מהלקוח</div>
+        <div style="display:flex;gap:8px;margin-bottom:6px;">
+          <button class="btn btn-sm" onclick="document.getElementById('q-upload-${id}').click()" style="color:var(--blue);border-color:var(--blue);">📎 העלה קובץ</button>
+          <input type="file" id="q-upload-${id}" accept=".docx,.xlsx,.xls,.txt" style="display:none" onchange="extractFileToQuestionnaire(this,${id})">
+        </div>
+        <textarea class="form-input" id="case-questionnaire" style="min-height:100px;" placeholder="הדבק שאלון שחזר מהלקוח...">${c.questionnaire_data||''}</textarea>
+      </div>
+      ${renderStageUpdates(updates)}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="saveStageData(${id},'${tab}');saveCaseQuestionnaire(${id})">💾 שמור הכל</button>
+        ${userRole==='lawyer'?`<button class="btn" onclick="analyzeCaseFull(${id})" style="color:var(--purple);border-color:var(--purple);">🤖 נתח תיק</button>`:''}
+        <button class="btn" onclick="addStageUpdate(${id},'${tab}')">+ הוסף עדכון</button>
+      </div>
+      ${renderStageTasks(tasks, id, tab)}`;
+  }
+
+  // ---- PROPOSAL TAB ----
+  if (tab === 'proposal') {
+    const lc = linkedConsult;
+    stageContent = `
+      ${lc && lc.fee_proposal ? `<div style="background:var(--green-dim);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;">
+        <div style="font-weight:700;color:var(--green);margin-bottom:4px;">💰 הצעת שכ"ט מהניתוח:</div>
+        <div style="white-space:pre-wrap;max-height:120px;overflow-y:auto;">${lc.fee_proposal}</div>
+        <button onclick="navigator.clipboard.writeText(\`${(lc.fee_proposal||'').replace(/`/g,"'")}\`);showNotif('✅ הועתק')"
+          style="margin-top:6px;background:white;border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;">📋 העתק</button>
+      </div>` : ''}
+      <div class="form-group">
+        <label class="form-label">הערות לשלב ההצעה וההסכם</label>
+        <textarea class="form-input" id="stage-notes-${id}" style="min-height:80px;" placeholder="פרטי ההסכם, מועד חתימה, סכום...">${notes}</textarea>
+      </div>
+      ${renderStageUpdates(updates)}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="saveStageData(${id},'${tab}')">💾 שמור</button>
+        <button class="btn" onclick="addStageUpdate(${id},'${tab}')">+ הוסף עדכון</button>
+        <button class="btn" onclick="addStageTask(${id},'${tab}')">+ הוסף משימה</button>
+      </div>
+      ${renderStageTasks(tasks, id, tab)}`;
+  }
+
+  // ---- DRAFTS TAB ----
+  if (tab === 'drafts') {
     const analysisFields = [
       {key:'diagnostic_report', title:'📊 דוח אבחון'},
       {key:'professional_analysis', title:'🔍 ניתוח מקצועי'},
-      {key:'strategic_alternatives', title:'♟️ חלופות אסטרטגיות'},
-      {key:'fee_proposal', title:'💰 הצעת שכ"ט'},
-      {key:'tasks_client', title:'✅ משימות ללקוח'},
-      {key:'tasks_lawyer', title:'⚖️ משימות לעו"ד'},
-      {key:'asset_map', title:'🏠 מפת נכסים'},
+      {key:'strategic_alternatives', title:'♟️ חלופות'},
     ];
     const hasAnalysis = analysisFields.some(f=>c[f.key]);
-    tabContent = `
-      <div style="margin-bottom:12px;">
-        <div class="form-group">
-          <label class="form-label">📋 תשובות שאלון מהלקוח</label>
-          <div style="display:flex;gap:8px;margin-bottom:8px;">
-            <button class="btn btn-sm" onclick="document.getElementById('q-file-${id}').click()" style="color:var(--blue);border-color:var(--blue);">📎 העלה קובץ Word/Excel</button>
-            <input type="file" id="q-file-${id}" accept=".docx,.xlsx,.xls,.txt" style="display:none" onchange="extractFileToQuestionnaire(this,${id})">
-            <span id="q-file-status-${id}" style="font-size:12px;color:var(--text3);line-height:32px;"></span>
-          </div>
-          <textarea class="form-input" id="case-questionnaire" style="min-height:120px;" placeholder="הדבק כאן את תשובות השאלון שקיבלת מהלקוח, או העלה קובץ...">${c.questionnaire_data||''}</textarea>
-        </div>
-        <button class="btn btn-primary" onclick="saveCaseQuestionnaire(${id})">💾 שמור שאלון</button>
-        ${userRole==='lawyer'?`<button class="btn" onclick="analyzeCaseFull(${id})" style="color:var(--purple);border-color:var(--purple);margin-right:8px;">🤖 נתח תיק מלא</button>`:''}
+    stageContent = `
+      <div class="form-group">
+        <label class="form-label">הערות ומצב הטיוטות</label>
+        <textarea class="form-input" id="stage-notes-${id}" style="min-height:70px;" placeholder="אילו מסמכים בהכנה, מצב, הערות...">${notes}</textarea>
       </div>
-      <div style="border-top:2px solid var(--border);padding-top:12px;margin-top:12px;">
-        ${hasAnalysis ? analysisFields.filter(f=>c[f.key]).map(f=>`
-          <div style="margin-bottom:16px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;">
-            <div style="background:var(--bg3);padding:9px 13px;display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:13px;font-weight:700;color:var(--blue);">${f.title}</span>
-              <button onclick="navigator.clipboard.writeText(\`${(c[f.key]||'').replace(/`/g,"'")}\`);showNotif('✅ הועתק')" style="background:white;border:1px solid var(--border);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;">📋 העתק</button>
-            </div>
-            <div style="font-size:13px;color:var(--text);line-height:1.8;white-space:pre-wrap;padding:12px;max-height:200px;overflow-y:auto;">${c[f.key]}</div>
-          </div>`).join('') : `<div style="text-align:center;padding:30px;color:var(--text3);">
-          <div style="font-size:28px;margin-bottom:8px;">🤖</div>
-          <div style="margin-bottom:12px;">הדבק שאלון ולחץ "נתח תיק מלא"</div>
-        </div>`}
-      </div>`;
+      ${hasAnalysis ? `<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:8px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px;">🤖 ניתוח AI לתיק:</div>
+        ${analysisFields.filter(f=>c[f.key]).map(f=>`
+          <div style="margin-bottom:10px;">
+            <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:4px;">${f.title}</div>
+            <div style="font-size:12px;background:var(--bg3);padding:8px;border-radius:6px;max-height:100px;overflow-y:auto;white-space:pre-wrap;">${c[f.key]}</div>
+          </div>`).join('')}
+      </div>` : `<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px;">
+        ${userRole==='lawyer'?`<button class="btn btn-sm" onclick="analyzeCaseFull(${id})" style="color:var(--purple);border-color:var(--purple);">🤖 נתח תיק מלא</button>`:'טרם בוצע ניתוח'}
+      </div>`}
+      ${renderStageUpdates(updates)}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="saveStageData(${id},'${tab}')">💾 שמור</button>
+        <button class="btn" onclick="addStageUpdate(${id},'${tab}')">+ הוסף עדכון</button>
+        <button class="btn" onclick="addStageTask(${id},'${tab}')">+ הוסף משימה</button>
+      </div>
+      ${renderStageTasks(tasks, id, tab)}`;
   }
 
-  if(tab==='docs') {
-    tabContent = `
-      <div style="margin-bottom:16px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px;">סמן מסמכים שנמצאים בתיק:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          ${DOCS.map(doc=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid ${caseDocs.includes(doc)?'var(--green)':'var(--border)'};border-radius:8px;cursor:pointer;background:${caseDocs.includes(doc)?'var(--green-dim)':'white'};">
-            <input type="checkbox" ${caseDocs.includes(doc)?'checked':''} onchange="toggleCaseDoc(${id},'${doc}',this.checked)" style="width:16px;height:16px;">
-            <span style="font-size:13px;">${doc}</span>
-          </label>`).join('')}
-        </div>
+  // ---- SIGNING TAB ----
+  if (tab === 'signing') {
+    const defaultSign = ['צוואה - זוג','יפו"כ - זוג','הסכם מתנה','הסכם הלוואה','הסכם משפחתי','שטר מכר'];
+    const signItems = checklist.length ? checklist : defaultSign.map(d=>({label:d,done:false}));
+    stageContent = `
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">🖊️ צ'ק-ליסט חתימות</div>
+      <div>
+        ${signItems.map((item,i)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1.5px solid ${item.done?'var(--green)':'var(--border)'};border-radius:8px;margin-bottom:6px;background:${item.done?'var(--green-dim)':'white'};">
+            <input type="checkbox" ${item.done?'checked':''} onchange="toggleChecklistItem(${id},'${tab}',${i},this.checked)"
+              style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">
+            <span style="flex:1;font-size:13px;${item.done?'text-decoration:line-through;color:var(--text3)':''}">${item.label}</span>
+            ${item.done?'<span style="font-size:11px;color:var(--green);">✅ נחתם</span>':'<span style="font-size:11px;color:var(--amber);">ממתין לחתימה</span>'}
+          </div>`).join('')}
       </div>
-      <div style="background:var(--bg3);border-radius:8px;padding:12px;font-size:13px;">
-        <div style="font-weight:700;margin-bottom:6px;">מסמכים שהתקבלו: ${caseDocs.length}</div>
-        ${caseDocs.length ? caseDocs.map(d=>`<div>✅ ${d}</div>`).join('') : '<div style="color:var(--text3);">אין מסמכים עדיין</div>'}
-      </div>`;
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <input class="form-input" id="new-checklist-item-${id}" placeholder="הוסף מסמך לחתימה..." style="flex:1;">
+        <button class="btn btn-sm btn-primary" onclick="addChecklistItem(${id},'${tab}')">+ הוסף</button>
+      </div>
+      ${renderStageUpdates(updates)}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="saveStageData(${id},'${tab}')">💾 שמור</button>
+        <button class="btn" onclick="addStageUpdate(${id},'${tab}')">+ הוסף עדכון</button>
+      </div>
+      ${renderStageTasks(tasks, id, tab)}`;
   }
 
-  if(tab==='tasks') {
-    tabContent = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:700;">משימות פתוחות (${caseTasks.length})</div>
-        <button class="btn btn-sm btn-primary" onclick="closeModal();openModal('new-task',${id})">+ משימה</button>
+  // ---- EXTERNAL TAB ----
+  if (tab === 'external') {
+    stageContent = `
+      <div class="form-group">
+        <label class="form-label">מעקב תהליכים מול גורמי חוץ</label>
+        <textarea class="form-input" id="stage-notes-${id}" style="min-height:100px;" placeholder="טאבו, מס שבח, עורכי דין נוספים, גופים פיננסיים...">${notes}</textarea>
       </div>
-      ${caseTasks.length ? caseTasks.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
-        <span style="font-size:13px;">${t.title}</span>
-        <button class="btn btn-sm" style="color:var(--green);border-color:var(--green);" onclick="completeTask(${t.id})">✓</button>
-      </div>`).join('') : '<div style="color:var(--text3);font-size:13px;padding:12px 0;">אין משימות פתוחות</div>'}
-      ${lc?`<div style="margin-top:12px;background:var(--blue-dim);border-radius:8px;padding:10px;font-size:12px;">
-        <div style="font-weight:700;color:var(--blue);margin-bottom:4px;">🎙️ מתוך שיחת הייעוץ:</div>
-        ${lc.ai_summary?`<div>${lc.ai_summary}</div>`:''}
-      </div>`:''}`;
+      ${renderStageUpdates(updates)}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="saveStageData(${id},'${tab}')">💾 שמור</button>
+        <button class="btn" onclick="addStageUpdate(${id},'${tab}')">+ הוסף עדכון</button>
+        <button class="btn" onclick="addStageTask(${id},'${tab}')">+ הוסף משימה</button>
+      </div>
+      ${renderStageTasks(tasks, id, tab)}`;
   }
 
-  document.getElementById('modal-content').innerHTML=`
+  // ---- CLOSE TAB ----
+  if (tab === 'close') {
+    stageContent = `
+      <div class="form-group">
+        <label class="form-label">סיכום טיפול</label>
+        <textarea class="form-input" id="stage-notes-${id}" style="min-height:100px;" placeholder="סיכום, מסמכים שנמסרו, הערות לסיום...">${notes}</textarea>
+      </div>
+      ${renderStageUpdates(updates)}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="saveStageData(${id},'${tab}')">💾 שמור</button>
+        <button class="btn" onclick="addStageUpdate(${id},'${tab}')">+ הוסף עדכון</button>
+        ${userRole==='lawyer'?`<button class="btn" style="color:var(--red);border-color:var(--red);" onclick="closeCase(${id})">סגור תיק</button>`:''}
+      </div>
+      ${renderStageTasks(tasks, id, tab)}`;
+  }
+
+  document.getElementById('modal-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
       <div>
-        <div class="modal-title" style="margin-bottom:6px;">📁 ${c.name}</div>
+        <div class="modal-title" style="margin-bottom:4px;">📁 ${c.name}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <span class="badge badge-blue">${c.type||''}</span>
-          <span class="badge badge-green">${STAGE_DETAILS[(c.stage||1)-1]?.name||''}</span>
           ${c.fee?`<span class="badge badge-gray">₪${Number(c.fee).toLocaleString()}</span>`:''}
+          ${c.complexity?`<span class="badge badge-amber">${c.complexity}</span>`:''}
         </div>
       </div>
-      <button class="btn btn-sm" onclick="closeModal()">✕</button>
+      <button onclick="closeModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);">✕</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
-      ${tabBtn('stages','📋 שלבים')}
-      ${tabBtn('analysis','🤖 ניתוח שאלון')}
-      ${tabBtn('docs','📄 מסמכים')}
-      ${tabBtn('tasks','✅ משימות')}
-    </div>
-    <div style="max-height:60vh;overflow-y:auto;">${tabContent}</div>
-    <div class="modal-actions" style="margin-top:12px;">
-      ${userRole==='lawyer'?`<button class="btn" style="color:var(--red);border-color:var(--red)" onclick="closeCase(${id})">${c.closed?'פתח מחדש':'סגור תיק'}</button>`:''}
-      ${userRole==='lawyer'&&c.closed?`<button class="btn" style="color:var(--text3);border-color:var(--text3)" onclick="archiveCase(${id})">🗃️ ארכיון</button>`:''}
-    </div>`;
+    <div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">${tabs}</div>
+    <div style="max-height:58vh;overflow-y:auto;padding-right:2px;">${stageContent}</div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
 
+function renderStageUpdates(updates) {
+  if (!updates || !updates.length) return '';
+  return `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:6px;">📌 עדכונים:</div>
+    ${updates.slice().reverse().map(u=>`<div style="font-size:12px;padding:6px 8px;background:var(--bg3);border-radius:6px;margin-bottom:4px;">
+      <span style="color:var(--text3);">${u.date} · ${u.author}:</span> ${u.text}
+    </div>`).join('')}
+  </div>`;
+}
+
+function renderStageTasks(tasks, caseId, tab) {
+  if (!tasks || !tasks.length) return '';
+  return `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">
+    <div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:6px;">✅ משימות שלב:</div>
+    ${tasks.map((t,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+      <input type="checkbox" ${t.done?'checked':''} onchange="toggleStageTask(${caseId},'${tab}',${i},this.checked)" style="width:15px;height:15px;">
+      <span style="${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.text}</span>
+      ${t.author?`<span style="font-size:10px;color:var(--text3);margin-right:auto;">${t.author}</span>`:''}
+    </div>`).join('')}
+  </div>`;
+}
+
+
+
+
+async function saveStageData(caseId, tabKey) {
+  const c = cache.cases.find(x=>x.id===caseId);
+  if(!c) return;
+  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  if(!stageData[tabKey]) stageData[tabKey] = {};
+  const notes = document.getElementById('stage-notes-'+caseId)?.value||'';
+  stageData[tabKey].notes = notes;
+  await db.from('cases').update({stage_data:JSON.stringify(stageData),updated_at:new Date()}).eq('id',caseId);
+  cache.cases = cache.cases.map(x=>x.id===caseId?{...x,stage_data:JSON.stringify(stageData)}:x);
+  showNotif('✅ נשמר');
+}
+
+async function addStageUpdate(caseId, tabKey) {
+  const text = prompt('הוסף עדכון:');
+  if(!text) return;
+  const c = cache.cases.find(x=>x.id===caseId);
+  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  if(!stageData[tabKey]) stageData[tabKey] = {};
+  if(!stageData[tabKey].updates) stageData[tabKey].updates = [];
+  const now = new Date();
+  stageData[tabKey].updates.push({
+    text,
+    author: currentUser?.email?.split('@')[0]||userRole,
+    date: now.toLocaleDateString('he-IL'),
+  });
+  await db.from('cases').update({stage_data:JSON.stringify(stageData),updated_at:new Date()}).eq('id',caseId);
+  cache.cases = cache.cases.map(x=>x.id===caseId?{...x,stage_data:JSON.stringify(stageData)}:x);
+  showNotif('✅ עדכון נוסף');
+  await loadCases();
+  openCaseDetail(caseId, tabKey);
+}
+
+async function addStageTask(caseId, tabKey) {
+  const text = prompt('הוסף משימה:');
+  if(!text) return;
+  const c = cache.cases.find(x=>x.id===caseId);
+  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  if(!stageData[tabKey]) stageData[tabKey] = {};
+  if(!stageData[tabKey].tasks) stageData[tabKey].tasks = [];
+  stageData[tabKey].tasks.push({
+    text,
+    done: false,
+    author: currentUser?.email?.split('@')[0]||userRole,
+  });
+  await db.from('cases').update({stage_data:JSON.stringify(stageData),updated_at:new Date()}).eq('id',caseId);
+  cache.cases = cache.cases.map(x=>x.id===caseId?{...x,stage_data:JSON.stringify(stageData)}:x);
+  showNotif('✅ משימה נוספה');
+  await loadCases();
+  openCaseDetail(caseId, tabKey);
+}
+
+async function toggleStageTask(caseId, tabKey, idx, done) {
+  const c = cache.cases.find(x=>x.id===caseId);
+  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  if(stageData[tabKey]?.tasks?.[idx]) {
+    stageData[tabKey].tasks[idx].done = done;
+    if(done) stageData[tabKey].tasks[idx].doneBy = currentUser?.email?.split('@')[0]||userRole;
+    await db.from('cases').update({stage_data:JSON.stringify(stageData),updated_at:new Date()}).eq('id',caseId);
+    cache.cases = cache.cases.map(x=>x.id===caseId?{...x,stage_data:JSON.stringify(stageData)}:x);
+    openCaseDetail(caseId, tabKey);
+  }
+}
+
+async function toggleChecklistItem(caseId, tabKey, idx, done) {
+  const c = cache.cases.find(x=>x.id===caseId);
+  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  if(!stageData[tabKey]) stageData[tabKey] = {};
+  const defaultDocs = tabKey==='collect'
+    ? ['נסח טאבו','שומת מס','צוואה קיימת','יפו"כ קיים','דוחות שמאי','מסמך זהות','שאלון לקוח','מסמכים פיננסיים']
+    : ['צוואה - זוג','יפו"כ - זוג','הסכם מתנה','הסכם הלוואה','הסכם משפחתי','שטר מכר'];
+  if(!stageData[tabKey].checklist) stageData[tabKey].checklist = defaultDocs.map(d=>({label:d,done:false}));
+  if(stageData[tabKey].checklist[idx]) {
+    stageData[tabKey].checklist[idx].done = done;
+    await db.from('cases').update({stage_data:JSON.stringify(stageData),updated_at:new Date()}).eq('id',caseId);
+    cache.cases = cache.cases.map(x=>x.id===caseId?{...x,stage_data:JSON.stringify(stageData)}:x);
+    openCaseDetail(caseId, tabKey);
+  }
+}
+
+async function addChecklistItem(caseId, tabKey) {
+  const val = document.getElementById('new-checklist-item-'+caseId)?.value?.trim();
+  if(!val) return;
+  const c = cache.cases.find(x=>x.id===caseId);
+  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  if(!stageData[tabKey]) stageData[tabKey] = {};
+  if(!stageData[tabKey].checklist) stageData[tabKey].checklist = [];
+  stageData[tabKey].checklist.push({label:val, done:false});
+  await db.from('cases').update({stage_data:JSON.stringify(stageData),updated_at:new Date()}).eq('id',caseId);
+  cache.cases = cache.cases.map(x=>x.id===caseId?{...x,stage_data:JSON.stringify(stageData)}:x);
+  openCaseDetail(caseId, tabKey);
+}
 
 async function updateCaseStage(id,stage) {
   await db.from('cases').update({stage,updated_at:new Date()}).eq('id',id);
@@ -1206,7 +1401,7 @@ function renderConsults() {
     }
     const scoreBg=score>=70?'var(--red)':score>=40?'var(--amber)':'var(--blue)';
     const fdColor=fdLabel.includes('🔴')?'var(--red)':fdLabel.includes('🟠')?'var(--amber)':'var(--green)';
-    return `<div class="card" id="consult-card-${c.id}" style="margin-bottom:8px;padding:12px 14px;cursor:pointer;border:2px solid transparent;transition:border-color 0.15s;" onclick="selectConsult(${c.id})">
+    return `<div class="card" id="consult-card-${c.id}" style="margin-bottom:8px;padding:12px 14px;cursor:pointer;border:2px solid transparent;transition:border-color 0.15s;" onclick="selectConsult(${c.id})" ondblclick="openModal('edit-consult',${c.id})">
       <div style="display:flex;gap:10px;align-items:flex-start;">
         <div style="width:38px;height:38px;border-radius:50%;background:${scoreBg};color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;">${score}</div>
         <div style="flex:1;min-width:0;">
@@ -1218,9 +1413,10 @@ function renderConsults() {
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;">
-          <button class="btn btn-sm" onclick="event.stopPropagation();analyzeConsult(${c.id})" style="color:var(--purple);border-color:var(--purple);font-size:11px;padding:3px 7px;">🤖</button>
-          <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openCaseFromConsult(${c.id})" style="font-size:11px;padding:3px 7px;">📁</button>
-          ${!showArchived?`<button class="btn btn-sm" onclick="event.stopPropagation();archiveConsult(${c.id})" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 7px;" title="העבר לארכיון">🗃️</button>`:`<button class="btn btn-sm" onclick="event.stopPropagation();restoreConsult(${c.id})" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 7px;" title="שחזר">↩</button>`}
+          <button class="btn btn-sm" onclick="event.stopPropagation();openModal('edit-consult',${c.id})" style="font-size:11px;padding:3px 7px;" title="עדכן סיכום שיחה">✏️</button>
+          <button class="btn btn-sm" onclick="event.stopPropagation();analyzeConsult(${c.id})" style="color:var(--purple);border-color:var(--purple);font-size:11px;padding:3px 7px;" title="נתח">🤖</button>
+          <button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openCaseFromConsult(${c.id})" style="font-size:11px;padding:3px 7px;" title="פתח תיק">📁</button>
+          ${!showArchived?`<button class="btn btn-sm" onclick="event.stopPropagation();archiveConsult(${c.id})" style="color:var(--red);border-color:var(--red);font-size:11px;padding:3px 7px;" title="ארכיון">🗃️</button>`:`<button class="btn btn-sm" onclick="event.stopPropagation();restoreConsult(${c.id})" style="color:var(--green);border-color:var(--green);font-size:11px;padding:3px 7px;" title="שחזר">↩</button>`}
         </div>
       </div>
     </div>`;
