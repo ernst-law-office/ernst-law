@@ -575,7 +575,7 @@ async function loadAll() {
   if(userRole==='intern') renderInternDashboard();
   else renderDashboard();
 }
-async function loadCases() { const {data}=await db.from('cases').select('*').order('created_at',{ascending:false}); cache.cases=data||[]; renderCases(); renderDashboard(); }
+async function loadCases() { const {data}=await db.from('cases').select('*').order('created_at',{ascending:false}); cache.cases=data||[]; renderCases(); renderDashboard(); if(userRole==='intern') renderInternDashboard(); }
 async function loadTasks() { const {data}=await db.from('tasks').select('*').order('created_at',{ascending:false}); cache.tasks=data||[]; renderTasks(); renderDashboard(); }
 async function loadLeads() { const {data}=await db.from('leads').select('*').order('created_at',{ascending:false}); cache.leads=data||[]; renderLeads(); renderDashboard(); }
 async function loadConsults() { const {data}=await db.from('consults').select('*').order('created_at',{ascending:false}); cache.consults=data||[]; renderConsults(); renderDashboard(); }
@@ -2419,16 +2419,15 @@ function renderInternDashboard() {
       <button class="btn btn-sm" style="font-size:11px;color:var(--green);border-color:var(--green)" onclick="completeTask(${t.id})">✓</button>
     </div>`;
   }).join(''):'<div style="padding:20px;text-align:center;color:var(--green)">✅ אין משימות דחופות</div>';
-  const myCases=[...new Set(open.map(t=>t.case_name).filter(c=>c&&c!=='כללי'))];
+  const activeCases=cache.cases.filter(c=>!c.closed&&!c.case_archived);
   const ic=document.getElementById('intern-cases-list');
-  if(ic) ic.innerHTML=myCases.length?myCases.map(name=>{
-    const c=cache.cases.find(x=>x.name===name);
-    const n=open.filter(t=>t.case_name===name).length;
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="${c?'openCaseDetail('+c.id+')':''}">
-      <div><div style="font-weight:500;font-size:13px">📁 ${name}</div>${c?`<div style="font-size:11px;color:var(--text3)">${c.type||''} · שלב ${STAGES[(c.stage||1)-1]}</div>`:''}</div>
-      <span style="background:var(--blue);color:#fff;border-radius:10px;padding:2px 8px;font-size:11px">${n}</span>
+  if(ic) ic.innerHTML=activeCases.length?activeCases.map(c=>{
+    const n=open.filter(t=>t.case_name===c.name).length;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openCaseDetail(${c.id})">
+      <div><div style="font-weight:500;font-size:13px">📁 ${c.name}</div><div style="font-size:11px;color:var(--text3)">${c.type||''} · שלב ${STAGES[(c.stage||1)-1]}</div></div>
+      ${n>0?`<span style="background:var(--blue);color:#fff;border-radius:10px;padding:2px 8px;font-size:11px">${n} משימות</span>`:''}
     </div>`;
-  }).join(''):'<div style="padding:20px;text-align:center;color:var(--text3)">אין תיקים עם משימות</div>';
+  }).join(''):'<div style="padding:20px;text-align:center;color:var(--text3)">אין תיקים פעילים</div>';
   const iat=document.getElementById('intern-all-tasks');
   const oc=document.getElementById('intern-open-count');
   if(oc) oc.textContent=open.length+' משימות פתוחות';
