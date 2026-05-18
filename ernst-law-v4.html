@@ -1287,11 +1287,15 @@ async function deleteCase(id) {
   if(!confirmed) return;
   const confirmed2 = confirm(`אישור סופי: למחוק "${c.name}"?`);
   if(!confirmed2) return;
+  // מחק קודם משימות מקושרות
+  await db.from('tasks').delete().eq('case_id', id);
+  // מחק את התיק עצמו
   const {error} = await db.from('cases').delete().eq('id', id);
   if(error) { showNotif('❌ שגיאה: '+error.message); return; }
   closeModal();
   showNotif('🗑️ התיק נמחק');
   await loadCases();
+  await loadTasks();
 }
 
 // ============================================================
