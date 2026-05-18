@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -1272,7 +1271,10 @@ function renderTasksList(filter) {
     return;
   }
   if(filter!=='all') tasks=tasks.filter(t=>t.assign===filter);
-  el.innerHTML=tasks.length?tasks.map(t=>`<div class="card" style="margin-bottom:10px;">
+  el.innerHTML=tasks.length?tasks.map(t=>{
+    const updates = t.task_updates ? (typeof t.task_updates==='string' ? JSON.parse(t.task_updates) : t.task_updates) : [];
+    const lastUpdate = updates.length ? updates[updates.length-1] : null;
+    return `<div class="card" style="margin-bottom:10px;">
     <div style="display:flex;gap:10px;align-items:flex-start;">
       <div style="width:10px;height:10px;border-radius:50%;background:${PRIORITY_COLORS[t.priority]||PRIORITY_COLORS.med};margin-top:5px;flex-shrink:0;"></div>
       <div style="flex:1;">
@@ -1282,9 +1284,56 @@ function renderTasksList(filter) {
           <span>📁 ${t.case_name||'כללי'}</span><span>👤 ${ASSIGN_LABELS[t.assign]||''}</span>
           ${t.due_date?`<span>📅 ${t.due_date}</span>`:''}
         </div>
+        ${lastUpdate?`<div style="font-size:11px;color:var(--text3);margin-top:5px;padding:4px 8px;background:var(--bg3);border-radius:5px;">
+          📝 עדכון אחרון: ${lastUpdate.text} <span style="opacity:0.7;">(${lastUpdate.date} · ${lastUpdate.author||''})</span>
+        </div>`:''}
+        ${updates.length>1?`<div style="font-size:11px;color:var(--blue);cursor:pointer;margin-top:3px;" onclick="toggleGlobalTaskHistory('gh-${t.id}')">📋 ${updates.length} עדכונים ▾</div>
+          <div id="gh-${t.id}" style="display:none;padding:5px 8px;background:var(--bg3);border-radius:5px;margin-top:3px;">
+            ${updates.slice(0,-1).reverse().map(u=>`<div style="font-size:11px;color:var(--text3);padding:2px 0;border-bottom:1px solid var(--border);">${u.date} · ${u.author||''}: ${u.text}</div>`).join('')}
+          </div>`:''}
+        <div id="gtask-update-box-${t.id}" style="display:none;margin-top:6px;">
+          <div style="display:flex;gap:6px;">
+            <input class="form-input" id="gtask-update-input-${t.id}" placeholder="הוסף עדכון..." style="flex:1;font-size:12px;">
+            <button class="btn btn-sm btn-primary" onclick="addGlobalTaskUpdate(${t.id})">שמור</button>
+            <button class="btn btn-sm" onclick="toggleGlobalTaskUpdateBox(${t.id})">ביטול</button>
+          </div>
+        </div>
       </div>
-      <button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="completeTask(${t.id})">✓ סיום</button>
-    </div></div>`).join(''):'<div class="empty-state">אין משימות פתוחות</div>';
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
+        <button class="btn btn-sm" style="color:var(--green);border-color:var(--green)" onclick="completeTask(${t.id})">✓ סיום</button>
+        <button class="btn btn-sm" style="color:var(--blue);border-color:var(--blue);font-size:11px;" onclick="toggleGlobalTaskUpdateBox(${t.id})">📝 עדכן</button>
+      </div>
+    </div></div>`;
+  }).join(''):'<div class="empty-state">אין משימות פתוחות</div>';
+}
+
+function toggleGlobalTaskUpdateBox(id) {
+  const box = document.getElementById(`gtask-update-box-${id}`);
+  if(!box) return;
+  box.style.display = box.style.display==='none' ? 'block' : 'none';
+  if(box.style.display==='block') document.getElementById(`gtask-update-input-${id}`)?.focus();
+}
+
+function toggleGlobalTaskHistory(id) {
+  const el = document.getElementById(id);
+  if(el) el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+async function addGlobalTaskUpdate(taskId) {
+  const inp = document.getElementById(`gtask-update-input-${taskId}`);
+  const text = inp ? inp.value.trim() : '';
+  if(!text) { showNotif('יש להזין טקסט לעדכון'); return; }
+  const t = cache.tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  const updates = t.task_updates ? (typeof t.task_updates==='string' ? JSON.parse(t.task_updates) : t.task_updates) : [];
+  const now = new Date();
+  const date = now.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  updates.push({ text, date, author: currentUser?.email?.split('@')[0]||userRole });
+  const {error} = await db.from('tasks').update({task_updates: JSON.stringify(updates), updated_at: new Date()}).eq('id', taskId);
+  if(error) { showNotif('❌ שגיאה: '+error.message); return; }
+  cache.tasks = cache.tasks.map(x=>x.id===taskId?{...x,task_updates:JSON.stringify(updates)}:x);
+  showNotif('✅ עדכון נשמר');
+  renderTasks();
 }
 async function completeTask(id) {
   await db.from('tasks').update({done:true,updated_at:new Date()}).eq('id',id);
