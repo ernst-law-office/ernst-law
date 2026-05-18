@@ -582,12 +582,42 @@ async function loadConsults() { const {data}=await db.from('consults').select('*
 async function loadInvoices() { const {data}=await db.from('invoices').select('*').order('created_at',{ascending:false}); cache.invoices=data||[]; renderBilling(); }
 
 // ============================================================
+// ============================================================
+// TASK COUNT HELPER — סופר גם משימות גלובליות וגם משימות שלב
+// ============================================================
+function countCaseOpenTasks(caseId, caseName) {
+  const globalTasks = cache.tasks.filter(t=>!t.done&&(t.case_id===caseId||t.case_name===caseName)).length;
+  const c = cache.cases.find(x=>x.id===caseId);
+  let stageTasks = 0;
+  if(c && c.stage_data) {
+    try {
+      const sd = typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data;
+      Object.values(sd).forEach(s=>{ if(s&&s.tasks) stageTasks += s.tasks.filter(t=>!t.done).length; });
+    } catch(e) {}
+  }
+  return globalTasks + stageTasks;
+}
+
+function countAllOpenTasks() {
+  const globalTasks = cache.tasks.filter(t=>!t.done).length;
+  let stageTasks = 0;
+  cache.cases.forEach(c=>{
+    if(c.stage_data) {
+      try {
+        const sd = typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data;
+        Object.values(sd).forEach(s=>{ if(s&&s.tasks) stageTasks += s.tasks.filter(t=>!t.done).length; });
+      } catch(e) {}
+    }
+  });
+  return globalTasks + stageTasks;
+}
+
 // DASHBOARD
 // ============================================================
 function renderDashboard() {
   if(!document.getElementById('metrics-grid')) return;
   const activeCases=cache.cases.filter(c=>!c.closed).length;
-  const openTasks=cache.tasks.filter(t=>!t.done).length;
+  const openTasks=countAllOpenTasks();
   const hotLeads=cache.leads.filter(l=>l.status==='נקבע שיחת ייעוץ').length;
   const totalBilling=cache.invoices.filter(i=>i.status==='שולם').reduce((s,i)=>s+(i.amount||0),0);
   document.getElementById('metrics-grid').innerHTML=[
@@ -658,7 +688,7 @@ function renderCases() {
       <td><span class="badge ${compColors[c.complexity]||'badge-gray'}">${c.complexity||'—'}</span></td>
       <td><span class="badge badge-blue">${STAGES[(c.stage||1)-1]}</span></td>
       <td style="min-width:120px"><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${STAGE_COLORS[c.stage||1]}"></div></div><div style="font-size:10px;color:var(--text3);margin-top:2px">${pct}%</div></td>
-      <td><span class="badge badge-amber">${cache.tasks.filter(t=>t.case_id===c.id&&!t.done).length}</span></td>
+      <td><span class="badge badge-amber">${countCaseOpenTasks(c.id,c.name)}</span></td>
     </tr>`;
   }).join(''):`<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)">${showClosed?'אין תיקים סגורים':'אין תיקים פעילים'}</td></tr>`;
 }
@@ -2528,7 +2558,7 @@ function renderInternDashboard() {
   const activeCases=cache.cases.filter(c=>!c.closed&&!c.case_archived);
   const ic=document.getElementById('intern-cases-list');
   if(ic) ic.innerHTML=activeCases.length?activeCases.map(c=>{
-    const n=open.filter(t=>t.case_name===c.name).length;
+    const n=countCaseOpenTasks(c.id,c.name);
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openCaseDetail(${c.id})">
       <div><div style="font-weight:500;font-size:13px">📁 ${c.name}</div><div style="font-size:11px;color:var(--text3)">${c.type||''} · שלב ${STAGES[(c.stage||1)-1]}</div></div>
       ${n>0?`<span style="background:var(--blue);color:#fff;border-radius:10px;padding:2px 8px;font-size:11px">${n} משימות</span>`:''}
