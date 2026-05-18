@@ -679,7 +679,7 @@ function openCaseDetail(id, activeTab) {
   ];
 
   const currentStageIdx = STAGE_INFO.findIndex(s=>s.key===tab);
-  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const stageData = c.stage_data ? (typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data) : {};
   const linkedConsult = cache.consults.find(x=>x.id===c.consult_id);
 
   // Tab buttons
@@ -966,7 +966,7 @@ async function addTaskUpdate(caseId, tabKey, idx) {
   if(!text) { showNotif('יש להזין טקסט לעדכון'); return; }
   const c = cache.cases.find(x=>x.id===caseId);
   if(!c) return;
-  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const stageData = c.stage_data ? (typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data) : {};
   if(!stageData[tabKey]?.tasks?.[idx]) return;
   if(!stageData[tabKey].tasks[idx].updates) stageData[tabKey].tasks[idx].updates = [];
   const now = new Date();
@@ -988,7 +988,7 @@ async function addTaskUpdate(caseId, tabKey, idx) {
 async function saveStageData(caseId, tabKey) {
   const c = cache.cases.find(x=>x.id===caseId);
   if(!c) return;
-  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const stageData = c.stage_data ? (typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data) : {};
   if(!stageData[tabKey]) stageData[tabKey] = {};
   const notes = document.getElementById('stage-notes-'+caseId)?.value||'';
   stageData[tabKey].notes = notes;
@@ -1005,7 +1005,7 @@ async function addStageUpdate(caseId, tabKey) {
   if(!text) { showNotif('יש להזין טקסט לעדכון'); return; }
   const c = cache.cases.find(x=>x.id===caseId);
   if(!c) return;
-  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const stageData = c.stage_data ? (typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data) : {};
   if(!stageData[tabKey]) stageData[tabKey] = {};
   if(!stageData[tabKey].updates) stageData[tabKey].updates = [];
   const now = new Date();
@@ -1028,7 +1028,7 @@ async function addStageTask(caseId, tabKey) {
   if(!text) { showNotif('יש להזין טקסט למשימה'); return; }
   const c = cache.cases.find(x=>x.id===caseId);
   if(!c) return;
-  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const stageData = c.stage_data ? (typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data) : {};
   if(!stageData[tabKey]) stageData[tabKey] = {};
   if(!stageData[tabKey].tasks) stageData[tabKey].tasks = [];
   stageData[tabKey].tasks.push({
@@ -1046,7 +1046,7 @@ async function addStageTask(caseId, tabKey) {
 
 async function toggleStageTask(caseId, tabKey, idx, done) {
   const c = cache.cases.find(x=>x.id===caseId);
-  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const stageData = c.stage_data ? (typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data) : {};
   if(stageData[tabKey]?.tasks?.[idx]) {
     stageData[tabKey].tasks[idx].done = done;
     if(done) stageData[tabKey].tasks[idx].doneBy = currentUser?.email?.split('@')[0]||userRole;
@@ -1058,7 +1058,7 @@ async function toggleStageTask(caseId, tabKey, idx, done) {
 
 async function toggleChecklistItem(caseId, tabKey, idx, done) {
   const c = cache.cases.find(x=>x.id===caseId);
-  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const stageData = c.stage_data ? (typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data) : {};
   if(!stageData[tabKey]) stageData[tabKey] = {};
   const defaultDocs = tabKey==='collect'
     ? ['נסח טאבו','שומת מס','צוואה קיימת','יפו"כ קיים','דוחות שמאי','מסמך זהות','שאלון לקוח','מסמכים פיננסיים']
@@ -1076,7 +1076,7 @@ async function addChecklistItem(caseId, tabKey) {
   const val = document.getElementById('new-checklist-item-'+caseId)?.value?.trim();
   if(!val) return;
   const c = cache.cases.find(x=>x.id===caseId);
-  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  const stageData = c.stage_data ? (typeof c.stage_data==='string' ? JSON.parse(c.stage_data) : c.stage_data) : {};
   if(!stageData[tabKey]) stageData[tabKey] = {};
   if(!stageData[tabKey].checklist) stageData[tabKey].checklist = [];
   stageData[tabKey].checklist.push({label:val, done:false});
