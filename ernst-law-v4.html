@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -910,12 +911,31 @@ function renderStageUpdates(updates, caseId, tabKey) {
 }
 
 function renderStageTasks(tasks, caseId, tab) {
-  const list = tasks && tasks.length ? tasks.map((t,i)=>`
-    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
-      <input type="checkbox" ${t.done?'checked':''} onchange="toggleStageTask(${caseId},'${tab}',${i},this.checked)" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
-      <span style="font-size:13px;flex:1;${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.text}</span>
-      ${t.author?`<span style="font-size:11px;color:var(--text3);">${t.author}</span>`:''}
-    </div>`).join('') : '<div style="font-size:12px;color:var(--text3);">אין משימות עדיין</div>';
+  const list = tasks && tasks.length ? tasks.map((t,i)=>{
+    const updates = t.updates||[];
+    const lastUpdate = updates.length ? updates[updates.length-1] : null;
+    return `
+    <div style="border-bottom:1px solid var(--border);padding:8px 0;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" ${t.done?'checked':''} onchange="toggleStageTask(${caseId},'${tab}',${i},this.checked)" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+        <span style="font-size:13px;flex:1;${t.done?'text-decoration:line-through;color:var(--text3)':''}">${t.text}</span>
+        ${t.author?`<span style="font-size:11px;color:var(--text3);">${t.author}</span>`:''}
+        <button onclick="toggleTaskUpdateBox(${caseId},'${tab}',${i})" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg3);cursor:pointer;color:var(--text2);">📝 עדכן</button>
+      </div>
+      ${lastUpdate?`<div style="font-size:11px;color:var(--text3);margin-top:4px;padding-right:24px;">עדכון אחרון: ${lastUpdate.text} <span style="opacity:0.7;">(${lastUpdate.date} · ${lastUpdate.author||''})</span></div>`:''}
+      ${updates.length>1?`<div style="font-size:11px;color:var(--blue);margin-top:2px;padding-right:24px;cursor:pointer;" onclick="toggleTaskHistory('task-hist-${caseId}-${tab}-${i}')">📋 ${updates.length} עדכונים ▾</div>
+        <div id="task-hist-${caseId}-${tab}-${i}" style="display:none;padding:6px 24px;background:var(--bg3);border-radius:6px;margin-top:4px;">
+          ${updates.slice(0,-1).reverse().map(u=>`<div style="font-size:11px;color:var(--text3);padding:3px 0;border-bottom:1px solid var(--border);">${u.date} · ${u.author||''}: ${u.text}</div>`).join('')}
+        </div>`:''}
+      <div id="task-update-box-${caseId}-${tab}-${i}" style="display:none;margin-top:6px;padding-right:24px;">
+        <div style="display:flex;gap:6px;">
+          <input class="form-input" id="task-update-input-${caseId}-${tab}-${i}" placeholder="הוסף עדכון למשימה..." style="flex:1;font-size:12px;">
+          <button class="btn btn-sm btn-primary" onclick="addTaskUpdate(${caseId},'${tab}',${i})">שמור</button>
+          <button class="btn btn-sm" onclick="toggleTaskUpdateBox(${caseId},'${tab}',${i})">ביטול</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') : '<div style="font-size:12px;color:var(--text3);">אין משימות עדיין</div>';
   return `<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
     <div style="font-size:13px;font-weight:700;margin-bottom:8px;">✅ משימות</div>
     ${list}
@@ -926,6 +946,43 @@ function renderStageTasks(tasks, caseId, tab) {
   </div>`;
 }
 
+function toggleTaskUpdateBox(caseId, tab, idx) {
+  const box = document.getElementById(`task-update-box-${caseId}-${tab}-${idx}`);
+  if(!box) return;
+  box.style.display = box.style.display==='none' ? 'block' : 'none';
+  if(box.style.display==='block') {
+    const inp = document.getElementById(`task-update-input-${caseId}-${tab}-${idx}`);
+    if(inp) inp.focus();
+  }
+}
+
+function toggleTaskHistory(id) {
+  const el = document.getElementById(id);
+  if(el) el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+async function addTaskUpdate(caseId, tabKey, idx) {
+  const inp = document.getElementById(`task-update-input-${caseId}-${tabKey}-${idx}`);
+  const text = inp ? inp.value.trim() : '';
+  if(!text) { showNotif('יש להזין טקסט לעדכון'); return; }
+  const c = cache.cases.find(x=>x.id===caseId);
+  if(!c) return;
+  const stageData = c.stage_data ? JSON.parse(c.stage_data) : {};
+  if(!stageData[tabKey]?.tasks?.[idx]) return;
+  if(!stageData[tabKey].tasks[idx].updates) stageData[tabKey].tasks[idx].updates = [];
+  const now = new Date();
+  const date = now.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  stageData[tabKey].tasks[idx].updates.push({
+    text,
+    date,
+    author: currentUser?.email?.split('@')[0]||userRole,
+  });
+  const {error} = await db.from('cases').update({stage_data:JSON.stringify(stageData),updated_at:new Date()}).eq('id',caseId);
+  if(error) { showNotif('❌ שגיאה: '+error.message); return; }
+  cache.cases = cache.cases.map(x=>x.id===caseId?{...x,stage_data:JSON.stringify(stageData)}:x);
+  showNotif('✅ עדכון נשמר');
+  openCaseDetail(caseId, tabKey);
+}
 
 
 
