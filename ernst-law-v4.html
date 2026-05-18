@@ -916,7 +916,10 @@ function openCaseDetail(id, activeTab) {
           ${c.complexity?`<span class="badge badge-amber">${c.complexity}</span>`:''}
         </div>
       </div>
-      <button onclick="closeModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);">✕</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${(userRole==='lawyer'||userRole==='intern')?`<button onclick="deleteCase(${id})" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;" title="מחק תיק">🗑️ מחק</button>`:''}
+        <button onclick="closeModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);">✕</button>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px;">${tabs}</div>
     <div style="max-height:58vh;overflow-y:auto;padding-right:2px;">${stageContent}</div>`;
@@ -1274,6 +1277,20 @@ async function archiveCase(id) {
 async function restoreCase(id) {
   await db.from('cases').update({case_archived:false, updated_at:new Date()}).eq('id',id);
   showNotif('↩ תיק שוחזר');
+  await loadCases();
+}
+
+async function deleteCase(id) {
+  const c = cache.cases.find(x=>x.id===id);
+  if(!c) return;
+  const confirmed = confirm(`האם למחוק את התיק "${c.name}" לצמיתות?\nפעולה זו אינה ניתנת לביטול!`);
+  if(!confirmed) return;
+  const confirmed2 = confirm(`אישור סופי: למחוק "${c.name}"?`);
+  if(!confirmed2) return;
+  const {error} = await db.from('cases').delete().eq('id', id);
+  if(error) { showNotif('❌ שגיאה: '+error.message); return; }
+  closeModal();
+  showNotif('🗑️ התיק נמחק');
   await loadCases();
 }
 
